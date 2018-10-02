@@ -4,6 +4,7 @@ import numpy as np
 
 class LogisticRegression:
     def __init__(self, learning=0.01, iterations=10000, fit_int=True, writing=False):
+        print("initialization")
         self.learning = learning
         self.iterations = iterations
         self.fit_int = fit_int
@@ -21,7 +22,9 @@ class LogisticRegression:
         return (-y * np.log(h) - (1 - y) * np.log(1 - h)).mean()
 
     def fit(self, X, y):
+       
         if self.fit_int:
+            #adds the column of ones for w0 multiplication
             X = self.add_int(X)
 
         self.theta = np.ones(X.shape[1])
@@ -31,12 +34,13 @@ class LogisticRegression:
             h = self.sigmoid(z)
             grad = np.dot(X.T, (h - y)) / y.shape[0]
             self.theta -= self.learning * grad
-            #print(self.theta)
+            # print(self.theta)
             if self.writing:
                 if i % 100 == 0:
                     z = np.dot(X, self.theta)
                     h = self.sigmoid(z)
-                    print(self.cost_func(h, y))
+                    print("aa")
+                    # print("iteration: {iter} | loss : {l}".format(iter = i, l = self.cost_func(h, y)))
 
     def predict_prob(self, X):
         return self.sigmoid(np.dot(X, self.theta))
