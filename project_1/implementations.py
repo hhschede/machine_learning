@@ -9,14 +9,16 @@ def compute_loss(y, tx, w, method = "MAE"):
     """
     
     if method == "MSE":
-        err = y - np.dot(tx, w)
-        loss = 1/(2*len(y)) * (np.sum(err**2))
+        err = y - tx.dot(w)
+        loss = 1/2*np.mean(err**)
     elif method == "MAE":  
-        err = y - np.dot(tx, w)
-        loss = 1/len(y)*(np.sum(np.absolute(err)))
+        err = y - tx.dot(w)
+        loss = np.mean(np.abs(err))
     elif method == "logistic":
-        loss = (-y * np.log(tx) - (1 - y) * np.log(1 - tx)).mean()
-        
+        try: 
+            loss = np.mean((-y * np.log(tx) - (1 - y) * np.log(1 - tx)))
+        except RuntimeWarning:
+            pass
     return loss
 
 # -----------------------------------------------------------------------------------
@@ -80,8 +82,6 @@ def stochastic_gradient_descent(y, tx, initial_w, batch_size = 500, max_iters = 
 def prepare_data_order_3(X):
     
     concatenate_X = []
-    
-    
     for col in X.T:
         col_squared = [entry**2 for entry in col]
         col_cubed = [entry ** 3 for entry in col]
@@ -113,8 +113,9 @@ def sigmoid(z):
 
     
 
-def compute_accuracy_logistic_regression(h, y, threshold = 0.5):
+def compute_accuracy_logistic_regression(y, tx, w, threshold = 0.5):
     # faster way to compute the accuracy
+    h = sigmoid(np.dot(tx, w))
     prediction = (h >= threshold)
     trues = y.astype(int) - prediction
     count = np.count_nonzero(trues==0)
@@ -123,13 +124,12 @@ def compute_accuracy_logistic_regression(h, y, threshold = 0.5):
 
 
 
-def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, method = "sgd", writing = False):
+def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, method = "sgd",batch_size = 250 writing = False):
     
     ws = np.zeros([max_iters + 1, tx.shape[1]])
     ws[0] = initial_w 
     losses = []
     w = initial_w
-    accuracy = []
     
     if method == "gd":
         for i in range(max_iters):
@@ -138,30 +138,28 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, metho
 
             w -= gamma * grad
             ws[i+1] = w
-            accuracy.append(compute_accuracy_logistic_regression(h,y))
             losses.append(compute_loss(y, h, w, method = "logistic"))
 
             if writing:
                 if i % 500 == 0:
-                    print("iteration: {iter} | accuracy : {a}, loss : {l}".format(
-                        iter = i, a = accuracy[-1], l=losses[-1] ))
+                    print("iteration: {iter} | loss : {l}".format(
+                        iter = i, l=losses[-1] ))
     if method == "sgd":
         for i in range(max_iters):   
-            for mini_y, mini_X in batch_iter(y, tx, 250):                
+            for mini_y, mini_X in batch_iter(y, tx, batch_size):                
                 h = sigmoid(np.dot(mini_X, w))
                 grad = np.dot(mini_X.T, (h - mini_y)) / mini_y.shape[0]
                 
                 w -= gamma * grad
                 
                 ws[i+1] = w
-                accuracy.append(compute_accuracy_logistic_regression(h,mini_y))
                 losses.append(compute_loss(mini_y, h, w, method = "logistic"))
 
-            if writing:
-                if i % 500 == 0:
-                    print("iteration: {iter} | accuracy : {a}, loss : {l}".format(
-                        iter = i, a = accuracy[-1], l=losses[-1] ))
-    return losses, ws, accuracy
+        if writing:
+            if i % 500 == 0:
+                print("iteration: {iter} | loss : {l}".format(
+                    iter = i, l=losses[-1] ))
+    return losses, ws
        
 
                           
