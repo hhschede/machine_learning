@@ -4,14 +4,18 @@ from helpers import *
 
 # -----------------------------------------------------------------------------------
 
-def compute_loss(y, tx, w, method = "MSE"):
+def compute_loss(y, tx, w, method = "MAE"):
     """Calculate the loss. using mse or mae.
     """
+    
     if method == "MSE":
         err = y - np.dot(tx, w)
-        loss = 1/(2*len(y))*np.sum(err**2)
-    if method == "MAE":
-        raise NotImplementedError
+        loss = 1/(2*len(y)) * (np.sum(err**2))
+    elif method == "MAE":  
+        err = y - np.dot(tx, w)
+        loss = 1/len(y)*(np.sum(np.absolute(err)))
+    elif method == "logistic":
+        loss = (-y * np.log(tx) - (1 - y) * np.log(1 - tx)).mean()
         
     return loss
 
@@ -51,7 +55,7 @@ def gradient_descent(y, tx, initial_w, max_iters, gamma, write = False):
 
 # -----------------------------------------------------------------------------------
 
-def stochastic_gradient_descent(y, tx, initial_w, batch_size, max_iters, gamma,write = False):
+def stochastic_gradient_descent(y, tx, initial_w, batch_size = 500, max_iters = 10000, gamma = 0.05,write = False):
     """Stochastic gradient descent algorithm."""
 
     ws = [initial_w]
@@ -60,115 +64,108 @@ def stochastic_gradient_descent(y, tx, initial_w, batch_size, max_iters, gamma,w
     
     for n_iter in range(max_iters):
         for mini_y, mini_tx in batch_iter(y, tx, 32):
-        
             gd = compute_gradient(mini_y, mini_tx, w)
-            loss = compute_loss(mini_y, mini_tx, w)
             w = w - gamma*gd
-    # store w and loss
-    ws.append(w)
-    losses.append(loss)
-    if write == True:
-        print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
-              bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
+            # store w and loss
+            ws.append(w)
+            losses.append(compute_loss(y, tx, w,method = "MSE"))
+        if write and (n_iter % 500 == 0):
+            print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
+                  bi=n_iter, ti=max_iters - 1, l=losses[-1], w0=w[0], w1=w[1]))
     return losses, ws
 
 
 # -----------------------------------------------------------------------------------
 
-
-
-
-class LogisticRegression:
-    def __init__(self, learning=0.01, iterations=10000, fit_int=True, writing=False):
-        self.learning = learning
-        self.iterations = iterations
-        self.fit_int = fit_int
-        self.theta = 0
-        self.writing = writing
-        self.accuracy = 0
-        self.loss = 0
-
-    def add_int(self, X):
-        intercept = np.ones((X.shape[0], 1))
-        return np.concatenate((intercept, X), axis=1)
-
-    def sigmoid(self, z):
-        return 1 / (1 + np.exp(-z))
-
-    def cost_func(self, h, y):
-        return (-y * np.log(h) - (1 - y) * np.log(1 - h)).mean()
-
-    def fit(self, X, y, method = "gd"):
-        X = self.concatenate_order_3(X)
+def prepare_data_order_3(X):
     
-        if self.fit_int:
-            #adds the column of ones for w0 multiplication
-            X = self.add_int(X)
+    concatenate_X = []
+    
+    
+    for col in X.T:
+        col_squared = [entry**2 for entry in col]
+        col_cubed = [entry ** 3 for entry in col]
+        concatenate_X.append(col_squared)
+        concatenate_X.append(col_cubed)
+    concatenate_X = np.array(concatenate_X).T
+    data = (np.concatenate((X, concatenate_X), axis=1))
+    
+    intercept = np.ones((X.shape[0], 1))
+    return np.concatenate((intercept, data), axis=1)
 
-        self.theta = np.ones(X.shape[1])
-        self.accuracy = np.zeros(self.iterations)
-        self.loss = np.zeros(self.iterations)
-        
-        if method == "gd":
-            for i in range(self.iterations):
-                z = np.dot(X, self.theta)
-                h = self.sigmoid(z)
-                grad = np.dot(X.T, (h - y)) / y.shape[0]
+def prepare_data_order_2(X):
+    
+    concatenate_X = []
+    
+    
+    for col in X.T:
+        col_squared = [entry**2 for entry in col]
+        concatenate_X.append(col_squared)
+    concatenate_X = np.array(concatenate_X).T
+    data = (np.concatenate((X, concatenate_X), axis=1))
+    
+    intercept = np.ones((X.shape[0], 1))
+    
+    return np.concatenate((intercept, data), axis=1)
 
-                self.theta -= self.learning * grad
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
 
-                self.accuracy[i] = self.compute_accuracy(h,y)
-                self.loss[i] = self.cost_func(h, y)
+    
 
-                if self.writing:
-                    if i % 500 == 0:
-                        print("iteration: {iter} | accuracy : {a}, loss : {l}".format(
-                            iter = i, a = self.accuracy[i], l=self.loss[i] ))
-        if method == "sgd":
-            for i in range(self.iterations):   
-                for mini_y, mini_X in batch_iter(y, X, 32):                
-                    z = np.dot(mini_X, self.theta)
-                    h = self.sigmoid(z)
-                    grad = np.dot(mini_X.T, (h - mini_y)) / mini_y.shape[0]
-                    self.theta -= self.learning * grad
-                    
-                z = np.dot(X, self.theta)
-                h = self.sigmoid(z)
-                self.accuracy[i] = self.compute_accuracy(h,y)
-                self.loss[i] = self.cost_func(h, y)
+def compute_accuracy_logistic_regression(h, y, threshold = 0.5):
+    # faster way to compute the accuracy
+    prediction = (h >= threshold)
+    trues = y.astype(int) - prediction
+    count = np.count_nonzero(trues==0)
+    percent = count/len(trues)
+    return percent
 
-                if self.writing:
-                    if i % 500 == 0:
-                        print("iteration: {iter} | accuracy : {a}, loss : {l}".format(
-                            iter = i, a = self.accuracy[i], l=self.loss[i] ))
+
+
+def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, method = "sgd", writing = False):
+    
+    ws = np.zeros([max_iters + 1, tx.shape[1]])
+    ws[0] = initial_w 
+    losses = []
+    w = initial_w
+    accuracy = []
+    
+    if method == "gd":
+        for i in range(max_iters):
+            h = sigmoid(np.dot(tx, w))
+            grad = np.dot(tx.T, (h - y)) / y.shape[0]
+
+            w -= gamma * grad
+            ws[i+1] = w
+            accuracy.append(compute_accuracy_logistic_regression(h,y))
+            losses.append(compute_loss(y, h, w, method = "logistic"))
+
+            if writing:
+                if i % 500 == 0:
+                    print("iteration: {iter} | accuracy : {a}, loss : {l}".format(
+                        iter = i, a = accuracy[-1], l=losses[-1] ))
+    if method == "sgd":
+        for i in range(max_iters):   
+            for mini_y, mini_X in batch_iter(y, tx, 250):                
+                h = sigmoid(np.dot(mini_X, w))
+                grad = np.dot(mini_X.T, (h - mini_y)) / mini_y.shape[0]
                 
+                w -= gamma * grad
                 
-            
-        return self.accuracy, self.loss
+                ws[i+1] = w
+                accuracy.append(compute_accuracy_logistic_regression(h,mini_y))
+                losses.append(compute_loss(mini_y, h, w, method = "logistic"))
+
+            if writing:
+                if i % 500 == 0:
+                    print("iteration: {iter} | accuracy : {a}, loss : {l}".format(
+                        iter = i, a = accuracy[-1], l=losses[-1] ))
+    return losses, ws, accuracy
        
-    def predict_prob(self, X):
-        return self.sigmoid(np.dot(X, self.theta))
 
-    def predict_class(self, X, threshold=0.5):
-        return self.predict_prob(X) >= threshold
-    
-    def compute_accuracy(self, h, y, threshold = 0.5):
-        # faster way to compute the accuracy
-        prediction = (h >= threshold)
-        trues = y.astype(int) - prediction
-        count = np.count_nonzero(trues==0)
-        percent = count/len(trues)
-        return percent
                           
-    def concatenate_order_3(self, X):
-        concatenate_X = []
-        for col in X.T:
-            col_squared = [entry**2 for entry in col]
-            col_cubed = [entry ** 3 for entry in col]
-            concatenate_X.append(col_squared)
-            concatenate_X.append(col_cubed)
-        concatenate_X = np.array(concatenate_X).T
-        return (np.concatenate((X, concatenate_X), axis=1))
+    
                    
      
         
