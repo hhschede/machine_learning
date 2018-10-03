@@ -10,7 +10,7 @@ def compute_loss(y, tx, w, method = "MAE"):
     
     if method == "MSE":
         err = y - tx.dot(w)
-        loss = 1/2*np.mean(err**)
+        loss = 1/2*np.mean(err**2)
     elif method == "MAE":  
         err = y - tx.dot(w)
         loss = np.mean(np.abs(err))
@@ -57,7 +57,7 @@ def gradient_descent(y, tx, initial_w, max_iters, gamma, write = False):
 
 # -----------------------------------------------------------------------------------
 
-def stochastic_gradient_descent(y, tx, initial_w, batch_size = 500, max_iters = 10000, gamma = 0.05,write = False):
+def stochastic_gradient_descent(y, tx, initial_w, batch_size = 500, max_iters = 10000, gamma = 0.05, write = False):
     """Stochastic gradient descent algorithm."""
 
     ws = [initial_w]
@@ -124,7 +124,7 @@ def compute_accuracy_logistic_regression(y, tx, w, threshold = 0.5):
 
 
 
-def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, method = "sgd",batch_size = 250 writing = False):
+def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, method = "sgd",batch_size = 250, writing = False):
     
     ws = np.zeros([max_iters + 1, tx.shape[1]])
     ws[0] = initial_w 
