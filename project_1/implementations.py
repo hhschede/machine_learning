@@ -15,10 +15,7 @@ def compute_loss(y, tx, w, method = "MAE"):
         err = y - tx.dot(w)
         loss = np.mean(np.abs(err))
     elif method == "logistic":
-        try: 
-            loss = np.mean((-y * np.log(tx) - (1 - y) * np.log(1 - tx)))
-        except RuntimeWarning:
-            pass
+        loss = np.mean((-y * np.log(sigmoid(tx.dot(w))) - (1 - y) * np.log(1 - sigmoid(tx.dot(w)))))
     return loss
 
 # -----------------------------------------------------------------------------------
