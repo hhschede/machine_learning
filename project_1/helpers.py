@@ -46,37 +46,33 @@ def create_csv_submission(ids, y_pred, name):
             writer.writerow({'Id':int(r1),'Prediction':int(r2)})
 
 
-def test_train(X, y, test_ratio=0.3):
-    """The test_train function will shuffle data randomly as well as return
+def split_data(X, y, ratio=0.8, seed=1):
+    """The split_data function will shuffle data randomly as well as return
     a split data set that are individual for training and testing purposes.
-    the input X is a numpy matrix with samples in rows and features in columns.
-    the input y is a numpy array with entry corresponding to the target value
+    The input X is a numpy array with samples in rows and features in columns.
+    The input y is a numpy array with each entry corresponding to the label
     of the corresponding sample in X. This may be a class or a float.
-    The test_ratio is a float, default 0.3, that sets the test set fraction of
-    the entire dataset to 0.3 and keeps the other part for training"""
-
+    The ratio variable is a float, default 0.8, that sets the train set fraction of
+    the entire dataset to 0.8 and keeps the other part for test set"""
+    
     import random
     import numpy as np
+    
+    # Set seed
+    np.random.seed(seed)
 
     # Perform shuffling
-    idx_shuffled = np.random.permutation(np.arange(0, X.shape[0]))
-    # return shuffled X and y
-    X_shuff = []
-    y_shuff = []
-    for sample in idx_shuffled:
-        X_shuff.append(X[sample])
-        y_shuff.append(y[sample])
-    X_shuff = np.matrix(X_shuff)
-    y_shuff = np.array(y_shuff)
+    idx_shuffled = np.random.permutation(len(y))
+    
+    # Return shuffled X and y
+    X_shuff = X[idx_shuffled]
+    y_shuff = y[idx_shuffled]
 
     # Cut the data set into train and test
-    test_num = int(X.shape[0] * test_ratio)
-    train_num = int(X.shape[0] - test_num)
-
-    # print(X_shuff)
-    X_train = X_shuff[0:train_num]
-    y_train = y_shuff[0:train_num]
-    X_test = X_shuff[train_num:]
+    train_num = round(len(y) * ratio)
+    X_train = X_shuff[:train_num,:]
+    y_train = y_shuff[:train_num]
+    X_test = X_shuff[train_num:,:]
     y_test = y_shuff[train_num:]
 
     return X_train, y_train, X_test, y_test
