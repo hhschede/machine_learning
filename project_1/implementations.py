@@ -75,35 +75,17 @@ def stochastic_gradient_descent(y, tx, initial_w, batch_size = 500, max_iters = 
 
 
 # -----------------------------------------------------------------------------------
+# this will have to be changed to the build_poly(x, degree): function!!!!!!!!
 
-def prepare_data_order_3(X):
-    
-    concatenate_X = []
-    for col in X.T:
-        col_squared = [entry**2 for entry in col]
-        col_cubed = [entry ** 3 for entry in col]
-        concatenate_X.append(col_squared)
-        concatenate_X.append(col_cubed)
-    concatenate_X = np.array(concatenate_X).T
-    data = (np.concatenate((X, concatenate_X), axis=1))
-    
-    intercept = np.ones((X.shape[0], 1))
-    return np.concatenate((intercept, data), axis=1)
+def build_poly(x, degree):
+    """polynomial basis functions for input data x, for j=0 up to j=degree."""
+    x_poly = np.ones(len(x))
+    print(len(x_poly))
+    for d in range(degree):
+        x_pow = np.power(x,d+1)
+        x_poly = np.column_stack((x_poly,x_pow))
+    return x_poly
 
-def prepare_data_order_2(X):
-    
-    concatenate_X = []
-    
-    
-    for col in X.T:
-        col_squared = [entry**2 for entry in col]
-        concatenate_X.append(col_squared)
-    concatenate_X = np.array(concatenate_X).T
-    data = (np.concatenate((X, concatenate_X), axis=1))
-    
-    intercept = np.ones((X.shape[0], 1))
-    
-    return np.concatenate((intercept, data), axis=1)
 
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
