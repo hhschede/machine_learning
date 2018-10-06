@@ -1,6 +1,7 @@
 import csv
 import numpy as np
 
+# -----------------------------------------------------------------------------------
 
 def load_csv_data(data_path, sub_sample=False):
     """Loads data and returns y (class labels), tX (features) and ids (event ids)"""
@@ -21,15 +22,17 @@ def load_csv_data(data_path, sub_sample=False):
 
     return yb, input_data, ids
 
+# -----------------------------------------------------------------------------------
 
 def predict_labels(weights, data):
     """Generates class predictions given weights, and a test data matrix"""
     y_pred = np.dot(data, weights)
-    y_pred[np.where(y_pred <= 0)] = -1
-    y_pred[np.where(y_pred > 0)] = 1
+    y_pred[np.where(y_pred <= 0.5)] = 0
+    y_pred[np.where(y_pred > 0.5)] = 1
     
     return y_pred
 
+# -----------------------------------------------------------------------------------
 
 def create_csv_submission(ids, y_pred, name):
     """
@@ -45,6 +48,7 @@ def create_csv_submission(ids, y_pred, name):
         for r1, r2 in zip(ids, y_pred):
             writer.writerow({'Id':int(r1),'Prediction':int(r2)})
 
+# -----------------------------------------------------------------------------------
 
 def split_data(X, y, ratio=0.8, seed=1):
     """The split_data function will shuffle data randomly as well as return
@@ -77,26 +81,22 @@ def split_data(X, y, ratio=0.8, seed=1):
 
     return X_train, y_train, X_test, y_test
 
+# -----------------------------------------------------------------------------------
 
 def pred_accuracy(predict, y):
-    trues = []
-    for num, val in enumerate(y):
-        if int(val) == predict[num]:
-            trues.append(1)
-        else:
-            trues.append(0)
-    trues = np.array(trues)
-    percent = trues.mean()
-    #print(percent)
+    compare = (predict == y)
+    percent = compare.mean()
     return percent
+
+# -----------------------------------------------------------------------------------
 
 def standardize(x):
     """Standardize the original data set."""
-    mean_x = np.mean(x)
-    x = x - mean_x
-    std_x = np.std(x)
-    x = x / std_x
-    return x, mean_x, std_x
+    center = x - np.mean(x, axis=0)
+    standard_data = center / np.std(center, axis=0)
+    return standard_data
+
+# -----------------------------------------------------------------------------------
 
 def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
     """
@@ -125,3 +125,77 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         end_index = min((batch_num + 1) * batch_size, data_size)
         if start_index != end_index:
             yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
+
+# -----------------------------------------------------------------------------------
+            
+def process_data(data, labels, ids, sample_filtering=True, feature_filtering=True):
+    """The process_data function prepares the data by performing
+    some data cleansing techniques. Missing values which are set as -999
+    are replaced by NaN, then the means of each features are calculated
+    in order to replace NaN values by the means. Features and samples with
+    too much missing values are deleted by this function."""
+
+    data_process = np.array(data[:,:])
+    lab = np.array(labels[:])
+    
+    # Setting labels as 0 (background) or 1 (signal)
+    lab[labels == -1] = 0
+    
+    # Setting missing values (-999) as NaN
+    data_process[data_process == -999] = np.nan
+
+    # Filtering weak features and samples
+
+    # Retrieving percentage for each feature 
+    if feature_filtering:
+        nan_count = np.count_nonzero(np.isnan(data_process),axis=0)/data_process.shape[0]
+        
+        # Filter out features which have NaN values higher than 60%
+        data_set_filtered = []
+        for idx, entry in enumerate(nan_count):
+            if entry < 0.6:
+                # Append the column of the original dataset that is good
+                data_set_filtered.append(data_process.T[idx]) 
+        data_set_filtered = np.array(data_set_filtered).T
+        
+    if sample_filtering:
+        data_set_filtered_2 = [] # Dataset filtered for features and samples
+        
+        # Arrays that gets rid of entries that are no longer corresponding in the dataframe
+        y = [] 
+        ids_filt = [] 
+        
+        # Retrieve percentage for each sample
+        nan_count_2 = np.count_nonzero(np.isnan(data_set_filtered),axis=1)/data_set_filtered.shape[1]
+        
+        # Gets rid of samples with NaN values higher than 15%
+        for idx, entry in enumerate(nan_count_2):
+            if entry < 0.15:
+                y.append(lab[idx])
+                ids_filt.append(ids[idx])
+                data_set_filtered_2.append(data_set_filtered[idx])
+        data_set_filtered_2 = np.array(data_set_filtered_2)
+        y = np.array(y)
+
+
+    # Print new dimensions of the dataframe after filtering
+
+    print('The original dimensions of the training data set was {0} samples'
+          ' and {1} columns. After feature and sample filtering, there are'
+          ' {2} samples and {3} columns'.format(data_process.shape[0],
+                                                data_process.shape[1],
+                                                data_set_filtered_2.shape[0],
+                                                data_set_filtered_2.shape[1]))
+
+    # Getting Rid of NaN and Replacing with mean
+
+    data_nan = data_set_filtered_2.copy() 
+    # Create list with average values of columns, excluding NaN values
+    column_means = np.nanmean(data_nan, axis=0)
+    
+    # Variable containing locations of NaN in data frame
+    inds = np.where(np.isnan(data_nan)) 
+    
+    # Reassign locations of NaN to the column means
+    data_nan[inds] = np.take(column_means, inds[1])
+    return (data_nan, y, ids_filt)
