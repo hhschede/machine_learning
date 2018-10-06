@@ -1,7 +1,6 @@
 import numpy as np
 from helpers import *
 
-
 # -----------------------------------------------------------------------------------
 
 def compute_loss(y, tx, w, method = "MSE"):
@@ -9,7 +8,7 @@ def compute_loss(y, tx, w, method = "MSE"):
     
     err = y - tx.dot(w)
     if method == "MSE":
-        loss = 0.5*np.mean(err**2)
+        loss = 1/2*np.mean(err**2)
     elif method == "MAE":  
         loss = np.mean(np.abs(err))
     elif method == "logistic":
@@ -21,36 +20,40 @@ def compute_loss(y, tx, w, method = "MSE"):
 def compute_gradient(y, tx, w, method = "MSE"):
     """Compute the gradient."""
     
-    err = y - np.dot(tx, w)
+    err = y - tx.dot(w)
     if method == "MSE":
-        grad = -tx.T.dot(err)/len(y)
+        grad = -tx.T.dot(err)/len(err)
     elif method == "MAE":
         grad = -tx.T.dot(np.sign(e))/len(y)
     return grad
 
 # -----------------------------------------------------------------------------------
 
-def least_squares_GD(y, tx, initial_w, max_iters, gamma, write = False):
+def least_squares_GD(y, tx, initial_w, tol = 1e-8, max_iters = 10000, gamma = 0.05, write = False):
     """Gradient descent algorithm."""
     
     # Define parameters to store w and loss
     ws = [initial_w]
-    losses = []
     w = initial_w
+    losses = [compute_loss(y, tx, w)]
+    diff = losses[0]
+    n_iter=0
     
-    for n_iter in range(max_iters):
+    while (n_iter < max_iters) and (diff > tol):
         # compute gradient
         gd = compute_gradient(y, tx, w)
         
-        # compute loss
-        loss = compute_loss(y, tx, w)  
-        
-        # compute next w 
+        # compute next w
         w = w - gamma*gd
         
-        # store w and loss
+        # compute loss and diff
+        loss = compute_loss(y, tx, w) 
+        diff = abs(loss-losses[-1])
+        
+        # store w and loss and increment
         ws.append(w)
         losses.append(loss)
+        n_iter += 1
         
         if write == True:
             print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
@@ -59,27 +62,32 @@ def least_squares_GD(y, tx, initial_w, max_iters, gamma, write = False):
 
 # -----------------------------------------------------------------------------------
 
-def least_squares_SGD(y, tx, initial_w, batch_size = 500, max_iters = 10000, gamma = 0.05, write = False):
+def least_squares_SGD(y, tx, initial_w, batch_size = 1000, tol = 1e-4, max_iters = 1000, gamma = 0.05, write = False):
     """Stochastic gradient descent algorithm."""
 
     ws = [initial_w]
-    losses = []
     w = initial_w
+    losses = [compute_loss(y, tx, w)]
+    diff = losses[0]
+    n_iter=0
     
-    for n_iter in range(max_iters):
+    while (n_iter < max_iters) and (diff > tol): 
         for mini_y, mini_tx in batch_iter(y, tx, batch_size):
             # compute gradient
             gd = compute_gradient(mini_y, mini_tx, w)
             
-            # compute loss
-            loss = compute_loss(y, tx, w)
-            
             # compute next w
             w = w - gamma*gd
+            
+            # compute loss
+            loss = compute_loss(y, tx, w)
+            diff = abs(loss-losses[-1])
             
             # store w and loss
             ws.append(w)
             losses.append(loss)
+            n_iter += 1
+            
         if write and (n_iter % 500 == 0):
             print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
                   bi=n_iter, ti=max_iters - 1, l=losses[-1], w0=w[0], w1=w[1]))
@@ -100,9 +108,9 @@ def least_squares(y, tx):
 def build_poly(x, degree):
     """Polynomial basis functions for input data x, for j=0 up to j=degree."""
     
-    x_poly = np.ones(np.shape(x))
+    x_poly = np.ones((len(x),1))
     for d in range(degree):
-        x_poly = np.column_stack((x_poly,np.power(x,d+1)))
+        x_poly = np.c_[x_poly, np.power(x, d+1)]
     return x_poly
 
 # -----------------------------------------------------------------------------------
@@ -112,15 +120,12 @@ def polynomial_regression(y, tx, degree):
        and then running least squares regression."""
     
     # Form dataset to do polynomial regression.
-    x_poly = build_poly(x, degree)
+    x_poly = build_poly(tx, degree)
 
     # Least squares using normal equations
     w = least_squares(y, tx)
-
-    # Compute RMSE
-    rmse = np.sqrt(2 * compute_loss(y, tx, w))
     
-    return rmse, w
+    return w
 
 def ridge_regression(y, tx, lambda_):
     """Calculates ridge regression."""
