@@ -4,15 +4,13 @@ from helpers import *
 
 # -----------------------------------------------------------------------------------
 
-def compute_loss(y, tx, w, method = "MAE"):
-    """Calculate the loss. using mse or mae.
-    """
+def compute_loss(y, tx, w, method = "MSE"):
+    """Calculate the loss."""
     
+    err = y - tx.dot(w)
     if method == "MSE":
-        err = y - tx.dot(w)
-        loss = 1/2*np.mean(err**2)
+        loss = 0.5*np.mean(err**2)
     elif method == "MAE":  
-        err = y - tx.dot(w)
         loss = np.mean(np.abs(err))
     elif method == "logistic":
         loss = np.mean((-y * np.log(sigmoid(tx.dot(w))) - (1 - y) * np.log(1 - sigmoid(tx.dot(w)))))
@@ -20,27 +18,34 @@ def compute_loss(y, tx, w, method = "MAE"):
 
 # -----------------------------------------------------------------------------------
 
-def compute_gradient(y, tx, w):
+def compute_gradient(y, tx, w, method = "MSE"):
     """Compute the gradient."""
+    
     err = y - np.dot(tx, w)
-    g = -1/len(y) * tx.T.dot(err)
-    return g
+    if method == "MSE":
+        grad = -tx.T.dot(err)/len(y)
+    elif method == "MAE":
+        grad = -tx.T.dot(np.sign(e))/len(y)
+    return grad
 
 # -----------------------------------------------------------------------------------
 
-def gradient_descent(y, tx, initial_w, max_iters, gamma, write = False):
+def least_squares_GD(y, tx, initial_w, max_iters, gamma, write = False):
     """Gradient descent algorithm."""
+    
     # Define parameters to store w and loss
     ws = [initial_w]
     losses = []
     w = initial_w
     
     for n_iter in range(max_iters):
-        # TODO: compute gradient and loss
+        # compute gradient
         gd = compute_gradient(y, tx, w)
+        
+        # compute loss
         loss = compute_loss(y, tx, w)  
         
-        # TODO: update w by gradient
+        # compute next w 
         w = w - gamma*gd
         
         # store w and loss
@@ -54,7 +59,7 @@ def gradient_descent(y, tx, initial_w, max_iters, gamma, write = False):
 
 # -----------------------------------------------------------------------------------
 
-def stochastic_gradient_descent(y, tx, initial_w, batch_size = 500, max_iters = 10000, gamma = 0.05, write = False):
+def least_squares_SGD(y, tx, initial_w, batch_size = 500, max_iters = 10000, gamma = 0.05, write = False):
     """Stochastic gradient descent algorithm."""
 
     ws = [initial_w]
@@ -62,35 +67,75 @@ def stochastic_gradient_descent(y, tx, initial_w, batch_size = 500, max_iters = 
     w = initial_w
     
     for n_iter in range(max_iters):
-        for mini_y, mini_tx in batch_iter(y, tx, 32):
+        for mini_y, mini_tx in batch_iter(y, tx, batch_size):
+            # compute gradient
             gd = compute_gradient(mini_y, mini_tx, w)
+            
+            # compute loss
+            loss = compute_loss(y, tx, w)
+            
+            # compute next w
             w = w - gamma*gd
+            
             # store w and loss
             ws.append(w)
-            losses.append(compute_loss(y, tx, w,method = "MSE"))
+            losses.append(loss)
         if write and (n_iter % 500 == 0):
             print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
                   bi=n_iter, ti=max_iters - 1, l=losses[-1], w0=w[0], w1=w[1]))
     return losses, ws
 
+# -----------------------------------------------------------------------------------
+
+def least_squares(y, tx):
+    """Calculate the least squares solution."""
+    
+    X = tx.T.dot(tx)
+    Y = tx.T.dot(y)
+    return np.linalg.solve(X, Y)
 
 # -----------------------------------------------------------------------------------
 # this will have to be changed to the build_poly(x, degree): function!!!!!!!!
 
 def build_poly(x, degree):
-    """polynomial basis functions for input data x, for j=0 up to j=degree."""
-    x_poly = np.ones(len(x))
-    print(len(x_poly))
+    """Polynomial basis functions for input data x, for j=0 up to j=degree."""
+    
+    x_poly = np.ones(np.shape(x))
     for d in range(degree):
-        x_pow = np.power(x,d+1)
-        x_poly = np.column_stack((x_poly,x_pow))
+        x_poly = np.column_stack((x_poly,np.power(x,d+1)))
     return x_poly
 
+# -----------------------------------------------------------------------------------
+
+def polynomial_regression(y, tx, degree):
+    """Constructing the polynomial basis function expansion of the data,
+       and then running least squares regression."""
+    
+    # Form dataset to do polynomial regression.
+    x_poly = build_poly(x, degree)
+
+    # Least squares using normal equations
+    w = least_squares(y, tx)
+
+    # Compute RMSE
+    rmse = np.sqrt(2 * compute_loss(y, tx, w))
+    
+    return rmse, w
+
+def ridge_regression(y, tx, lambda_):
+    """Calculates ridge regression."""
+    
+    xTx = tx.T.dot(tx)
+    X = xTx + (2 * len(y) * lambda_ * np.identity(len(xTx)))
+    Y = tx.T.dot(y)
+    return np.linalg.solve(X, Y)
+
+# -----------------------------------------------------------------------------------
 
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
 
-    
+# -----------------------------------------------------------------------------------
 
 def compute_accuracy_logistic_regression(y, tx, w, threshold = 0.5):
     # faster way to compute the accuracy
@@ -101,7 +146,7 @@ def compute_accuracy_logistic_regression(y, tx, w, threshold = 0.5):
     percent = count/len(trues)
     return percent
 
-
+# -----------------------------------------------------------------------------------
 
 def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, method = "sgd",batch_size = 250, writing = False):
     
