@@ -92,9 +92,11 @@ def pred_accuracy(predict, y):
 
 def standardize(x):
     """Standardize the original data set."""
-    center = x - np.mean(x, axis=0)
-    standard_data = center / np.std(center, axis=0)
-    return standard_data
+    mean = np.mean(x, axis=0)
+    center = x - mean
+    variance = np.std(center, axis=0)
+    standard_data = center / variance
+    return standard_data, mean, variance
 
 # -----------------------------------------------------------------------------------
 
@@ -133,7 +135,9 @@ def process_data(data, labels, ids, sample_filtering=True, feature_filtering=Tru
     some data cleansing techniques. Missing values which are set as -999
     are replaced by NaN, then the means of each features are calculated
     in order to replace NaN values by the means. Features and samples with
-    too much missing values are deleted by this function."""
+    too much missing values are deleted by this function. Returns filtered
+    dataset and column idx to be removed as well as column means and variance
+    (required for transformation of unseen data."""
 
     data_process = np.array(data[:,:])
     lab = np.array(labels[:])
@@ -147,6 +151,8 @@ def process_data(data, labels, ids, sample_filtering=True, feature_filtering=Tru
     # Filtering weak features and samples
 
     # Retrieving percentage for each feature 
+    
+    idx_colremoved = []
     if feature_filtering:
         nan_count = np.count_nonzero(np.isnan(data_process),axis=0)/data_process.shape[0]
         
@@ -155,7 +161,9 @@ def process_data(data, labels, ids, sample_filtering=True, feature_filtering=Tru
         for idx, entry in enumerate(nan_count):
             if entry < 0.6:
                 # Append the column of the original dataset that is good
-                data_set_filtered.append(data_process.T[idx]) 
+                data_set_filtered.append(data_process.T[idx])
+            else:
+                idx_colremoved.append(idx)
         data_set_filtered = np.array(data_set_filtered).T
         
     if sample_filtering:
@@ -198,4 +206,4 @@ def process_data(data, labels, ids, sample_filtering=True, feature_filtering=Tru
     
     # Reassign locations of NaN to the column means
     data_nan[inds] = np.take(column_means, inds[1])
-    return (data_nan, y, ids_filt)
+    return (data_nan, y, ids_filt, idx_colremoved)
