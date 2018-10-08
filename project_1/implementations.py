@@ -48,7 +48,7 @@ def least_squares_GD(y, tx, initial_w, tol = 1e-8, max_iters = 10000, gamma = 0.
         
         # compute loss and diff
         loss = compute_loss(y, tx, w) 
-        # diff = abs(loss-losses[-1])
+        diff = abs(loss-losses[-1])
         
         # store w and loss and increment
         ws.append(w)
