@@ -100,6 +100,7 @@ def least_squares(y, tx):
     
     X = tx.T.dot(tx)
     Y = tx.T.dot(y)
+    
     return np.linalg.solve(X, Y)
 
 # -----------------------------------------------------------------------------------
@@ -118,9 +119,6 @@ def build_poly(x, degree):
 def polynomial_regression(y, tx, degree):
     """Constructing the polynomial basis function expansion of the data,
        and then running least squares regression."""
-    
-    # Form dataset to do polynomial regression.
-    x_poly = build_poly(tx, degree)
 
     # Least squares using normal equations
     w = least_squares(y, tx)
