@@ -49,8 +49,28 @@ def create_csv_submission(ids, y_pred, name):
             writer.writerow({'Id':int(r1),'Prediction':int(r2)})
 
 # -----------------------------------------------------------------------------------
+def split_data(x, y, ratio=0.8, seed=1):
+    """split the dataset based on the split ratio."""
+    # set seed
+    np.random.seed(seed)
+    # generate random indices
+    num_row = len(y)
+    indices = np.random.permutation(num_row)
+    index_split = int(np.floor(ratio * num_row))
+    index_tr = indices[: index_split]
+    index_te = indices[index_split:]
+    # create split
+    x_tr = x[index_tr]
+    x_te = x[index_te]
+    y_tr = y[index_tr]
+    y_te = y[index_te]
+    return x_tr, y_tr, x_te, y_te
 
-def split_data(X, y, ratio=0.8, seed=1):
+
+
+
+
+def split_data_old(X, y, ratio=0.8, seed=1):
     """The split_data function will shuffle data randomly as well as return
     a split data set that are individual for training and testing purposes.
     The input X is a numpy array with samples in rows and features in columns.
@@ -60,7 +80,6 @@ def split_data(X, y, ratio=0.8, seed=1):
     the entire dataset to 0.8 and keeps the other part for test set"""
     
     import random
-    import numpy as np
     
     # Set seed
     np.random.seed(seed)
@@ -74,6 +93,7 @@ def split_data(X, y, ratio=0.8, seed=1):
 
     # Cut the data set into train and test
     train_num = round(len(y) * ratio)
+    
     X_train = X_shuff[:train_num,:]
     y_train = y_shuff[:train_num]
     X_test = X_shuff[train_num:,:]

@@ -7,12 +7,16 @@ def compute_loss(y, tx, w, method = "MSE"):
     """Calculate the loss."""
     
     err = y - tx.dot(w)
+    
     if method == "MSE":
         loss = 1/2*np.mean(err**2)
+        
     elif method == "MAE":  
         loss = np.mean(np.abs(err))
+        
     elif method == "logistic":
         loss = np.mean((-y * np.log(sigmoid(tx.dot(w))) - (1 - y) * np.log(1 - sigmoid(tx.dot(w)))))
+        
     return loss
 
 # -----------------------------------------------------------------------------------
@@ -23,6 +27,7 @@ def compute_gradient(y, tx, w, method = "MSE"):
     err = y - tx.dot(w)
     if method == "MSE":
         grad = -tx.T.dot(err)/len(err)
+        
     elif method == "MAE":
         grad = -tx.T.dot(np.sign(e))/len(y)
     return grad
@@ -109,21 +114,13 @@ def least_squares(y, tx):
 def build_poly(x, degree):
     """Polynomial basis functions for input data x, for j=0 up to j=degree."""
     
-    x_poly = np.ones((len(x),1))
-    for d in range(degree):
-        x_poly = np.c_[x_poly, np.power(x, d+1)]
-    return x_poly
+    poly = np.ones((len(x), 1))
+    for deg in range(1, degree+1):
+        poly = np.c_[poly, np.power(x, deg)]
+    return poly
 
 # -----------------------------------------------------------------------------------
 
-def polynomial_regression(y, tx, degree):
-    """Constructing the polynomial basis function expansion of the data,
-       and then running least squares regression."""
-
-    # Least squares using normal equations
-    w = least_squares(y, tx)
-    
-    return w
 
 def ridge_regression(y, tx, lambda_):
     """Calculates ridge regression."""
