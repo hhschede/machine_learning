@@ -216,10 +216,10 @@ def reg_logistic_regression(y, tx, initial_w, lamb, max_iters = 10000, gamma = 0
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
                 h = sigmoid(np.dot(mini_X, w))
-                grad = np.dot(mini_X.T, (h - mini_y)) / mini_y.shape[0] + lam * np.linalg.norm(w) / y.shape[0]
+                grad = np.dot(mini_X.T, (h - mini_y)) / mini_y.shape[0] + lamb * np.linalg.norm(w) / y.shape[0]
                 w -= gamma * grad
                 ws[i+1] = w
-                losses.append(compute_loss(mini_y, mini_X, w, lam, method = 'reg_logistic'))
+                losses.append(compute_loss(mini_y, mini_X, w, lam = lamb, method = 'reg_logistic'))
 
             if writing:
                 if i % 500 == 0:
