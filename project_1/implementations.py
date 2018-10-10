@@ -5,13 +5,13 @@ from helpers import *
 
 def compute_loss(y, tx, w, method = "MSE"):
     """Calculate the loss."""
-    
-    err = y - tx.dot(w)
-    
+        
     if method == "MSE":
+        err = y - tx.dot(w)
         loss = 1/2*np.mean(err**2)
         
     elif method == "MAE":  
+        err = y - tx.dot(w)
         loss = np.mean(np.abs(err))
         
     elif method == "logistic":
@@ -162,7 +162,7 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, metho
 
             w -= gamma * grad
             ws[i+1] = w
-            losses.append(compute_loss(y, h, w, method = "logistic"))
+            losses.append(compute_loss(y, tx, w, method = "logistic"))
 
             if writing:
                 if i % 500 == 0:
