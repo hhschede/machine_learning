@@ -3,7 +3,7 @@ from helpers import *
 
 # -----------------------------------------------------------------------------------
 
-def compute_loss(y, tx, w, method = "MSE"):
+def compute_loss(y, tx, w, lam = 0, method = "MSE"):
     """Calculate the loss."""
         
     if method == "MSE":
@@ -16,7 +16,10 @@ def compute_loss(y, tx, w, method = "MSE"):
         
     elif method == "logistic":
         loss = np.mean((-y * np.log(sigmoid(tx.dot(w))) - (1 - y) * np.log(1 - sigmoid(tx.dot(w)))))
-        
+    
+    elif method == 'reg_logistic':
+        loss = np.mean((-y * np.log(sigmoid(tx.dot(w))) - (1 - y) * np.log(1 - sigmoid(tx.dot(w)))) + 0.5 * lam * np.linalg.norm(w)) ** 2
+    
     return loss
 
 # -----------------------------------------------------------------------------------
@@ -185,7 +188,45 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, metho
                     iter = i, l=losses[-1] ))
     return losses, ws
        
+# --------------------------------------------------------------------------------
 
+def reg_logistic_regression(y, tx, initial_w, lamb, max_iters = 10000, gamma = 0.01, methods = "sgd", batch_size = 250, writing = False):
+    
+    ws = np.zeros([max_iters + 1, tx.shape[1]])
+    ws[0] = initial_w 
+    losses = []
+    w = initial_w
+    
+    if methods == "gd":
+        for i in range(max_iters):
+            h = sigmoid(np.dot(tx, w))
+            grad = np.dot(tx.T, (h - y)) / y.shape[0] + lamb * np.linalg.norm(w) / y.shape[0]
+            w -= gamma * grad
+            ws[i+1] = w
+            losses.append(compute_loss(y, tx, w, lam = lamb, method = 'reg_logistic'))
+
+            if writing:
+                if i % 500 == 0:
+                    print("iteration: {iter} | loss : {l}".format(
+                        iter = i, l=losses[-1] ))
+
+                    
+
+    if methods == "sgd":
+        for i in range(max_iters):   
+            for mini_y, mini_X in batch_iter(y, tx, batch_size):                
+                h = sigmoid(np.dot(mini_X, w))
+                grad = np.dot(mini_X.T, (h - mini_y)) / mini_y.shape[0] + lam * np.linalg.norm(w) / y.shape[0]
+                w -= gamma * grad
+                ws[i+1] = w
+                losses.append(compute_loss(mini_y, mini_X, w, lam, method = 'reg_logistic'))
+
+            if writing:
+                if i % 500 == 0:
+                    print("iteration: {iter} | loss : {l}".format(
+                        iter = i, l=losses[-1] ))
+
+    return losses, ws
                           
     
                    
