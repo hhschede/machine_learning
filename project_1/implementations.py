@@ -5,11 +5,10 @@ from helpers import *
 
 def compute_loss(y, tx, w, lam = 0, method = "MSE"):
     """Calculate the loss."""
-        
+
     if method == "MSE":
         err = y - tx.dot(w)
         loss = 1/2*np.mean(err**2)
-        
     elif method == "MAE":  
         err = y - tx.dot(w)
         loss = np.mean(np.abs(err))
@@ -70,7 +69,7 @@ def least_squares_GD(y, tx, initial_w, tol = 1e-8, max_iters = 10000, gamma = 0.
 
 # -----------------------------------------------------------------------------------
 
-def least_squares_SGD(y, tx, initial_w, batch_size = 1000, tol = 1e-4, max_iters = 1000, gamma = 0.05, write = False):
+def least_squares_SGD(y, tx, initial_w, batch_size = 1000, tol = 1e-4,patience = 1, max_iters = 1000, gamma = 0.05, write = False):
     """Stochastic gradient descent algorithm."""
 
     ws = [initial_w]
@@ -78,8 +77,10 @@ def least_squares_SGD(y, tx, initial_w, batch_size = 1000, tol = 1e-4, max_iters
     losses = [compute_loss(y, tx, w)]
     diff = losses[0]
     n_iter=0
+    nb_ES = 0
     
-    while (n_iter < max_iters) and (diff > tol): 
+    
+    while (n_iter <= max_iters) and (nb_ES < patience): 
         for mini_y, mini_tx in batch_iter(y, tx, batch_size):
             # compute gradient
             gd = compute_gradient(mini_y, mini_tx, w)
@@ -89,12 +90,15 @@ def least_squares_SGD(y, tx, initial_w, batch_size = 1000, tol = 1e-4, max_iters
             
             # compute loss
             loss = compute_loss(y, tx, w)
+            
             diff = abs(loss-losses[-1])
             
             # store w and loss
             ws.append(w)
             losses.append(loss)
             n_iter += 1
+            if (diff < tol):
+                nb_ES = nb_ES + 1
             
         if write and (n_iter % 500 == 0):
             print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
@@ -136,7 +140,7 @@ def ridge_regression(y, tx, lambda_):
 # -----------------------------------------------------------------------------------
 
 def sigmoid(z):
-    return 1 / (1 + np.exp(-z))
+    return 1 / (1 + np.exp(-abs(z)))
 
 # -----------------------------------------------------------------------------------
 

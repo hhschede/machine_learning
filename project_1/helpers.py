@@ -24,11 +24,11 @@ def load_csv_data(data_path, sub_sample=False):
 
 # -----------------------------------------------------------------------------------
 
-def predict_labels(weights, data):
+def predict_labels(weights, data, threshold = 0.5):
     """Generates class predictions given weights, and a test data matrix"""
     y_pred = np.dot(data, weights)
-    y_pred[np.where(y_pred <= 0.5)] = 0
-    y_pred[np.where(y_pred > 0.5)] = 1
+    y_pred[np.where(y_pred <= threshold)] = -1
+    y_pred[np.where(y_pred > threshold)] = 1
     
     return y_pred
 
@@ -150,7 +150,7 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
 
 # -----------------------------------------------------------------------------------
             
-def process_data(data, labels, ids, sample_filtering=True, feature_filtering=True):
+def process_data(data, labels, ids, zero = True, sample_filtering=True, feature_filtering=True):
     """The process_data function prepares the data by performing
     some data cleansing techniques. Missing values which are set as -999
     are replaced by NaN, then the means of each features are calculated
@@ -162,8 +162,9 @@ def process_data(data, labels, ids, sample_filtering=True, feature_filtering=Tru
     data_process = np.array(data[:,:])
     lab = np.array(labels[:])
     
-    # Setting labels as 0 (background) or 1 (signal)
-    lab[labels == -1] = 0
+    if zero == True:
+        # Setting labels as 0 (background) or 1 (signal)
+        lab[labels == -1] = 0
     
     # Setting missing values (-999) as NaN
     data_process[data_process == -999] = np.nan
