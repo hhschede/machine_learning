@@ -14,7 +14,12 @@ def compute_loss(y, tx, w, lam = 0, method = "MSE"):
         loss = np.mean(np.abs(err))
         
     elif method == "logistic":
-        loss = np.mean((-y * np.log(sigmoid(tx.dot(w))) - (1 - y) * np.log(1 - sigmoid(tx.dot(w)))))
+        z = y * tx.dot(w)
+        idx = z > 0
+        loss = np.zeros(z.shape)
+        loss[idx] = np.log(1 + np.exp(-z[idx]))
+        loss[~idx] = (-z[~idx] + np.log(1 + np.exp(z[~idx])))
+        loss = loss.sum() + 0.5 * lam * w.dot(w)
     
     elif method == 'reg_logistic':
         loss = np.mean((-y * np.log(sigmoid(tx.dot(w))) - (1 - y) * np.log(1 - sigmoid(tx.dot(w)))) + 0.5 * lam * np.linalg.norm(w)) ** 2
@@ -23,7 +28,7 @@ def compute_loss(y, tx, w, lam = 0, method = "MSE"):
 
 # -----------------------------------------------------------------------------------
 
-def compute_gradient(y, tx, w, method = "MSE"):
+def compute_gradient(y, tx, w, lam=0.01, method = "MSE"):
     """Compute the gradient."""
     
     err = y - tx.dot(w)
@@ -32,7 +37,25 @@ def compute_gradient(y, tx, w, method = "MSE"):
         
     elif method == "MAE":
         grad = -tx.T.dot(np.sign(e))/len(y)
+        
+    elif method == "logistic":
+        z = sigmoid(y * tx.dot(w))
+        z0 = (z - 1) * y
+        grad = tx.T.dot(z0) + lam * w
+        return grad
+    
     return grad
+
+# -----------------------------------------------------------------------------------
+
+def compute_hessian(y, tx, w):
+    """return the hessian of the loss function."""
+    z = sigmoid(y * tx.dot(w))
+    d = z*(1-z)
+    wa = d[:, np.newaxis]*tx
+    Hs = tx.T.dot(wa)
+    hess = Hs 
+    return hess
 
 # -----------------------------------------------------------------------------------
 
@@ -141,7 +164,12 @@ def ridge_regression(y, tx, lambda_):
 # -----------------------------------------------------------------------------------
 
 def sigmoid(z):
-    return 1 / (1 + np.exp(-abs(z)))
+    
+    idx = z > 0
+    sig = np.zeros(z.shape)
+    sig[idx] = 1. / (1 + np.exp(-z[idx]))
+    sig[~idx] = np.exp(z[~idx]) / (1. + np.exp(z[~idx]))
+    return sig
 
 # -----------------------------------------------------------------------------------
 
@@ -156,7 +184,7 @@ def compute_accuracy_logistic_regression(y, tx, w, threshold = 0.5):
 
 # -----------------------------------------------------------------------------------
 
-def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, method = "sgd",batch_size = 250, writing = False):
+def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, method = "sgd",batch_size = 250, writing = True):
     
     ws = np.zeros([max_iters + 1, tx.shape[1]])
     ws[0] = initial_w 
@@ -165,8 +193,7 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, metho
     
     if method == "gd":
         for i in range(max_iters):
-            h = sigmoid(np.dot(tx, w))
-            grad = np.dot(tx.T, (h - y)) / y.shape[0]
+            grad = compute_gradient(y, tx, initial_w)
 
             w -= gamma * grad
             ws[i+1] = w
@@ -191,6 +218,39 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, metho
             if i % 500 == 0:
                 print("iteration: {iter} | loss : {l}".format(
                     iter = i, l=losses[-1] ))
+    return losses, ws
+
+# -----------------------------------------------------------------------------------
+
+def logistic_hessian(y, tx, initial_w, max_iters = 100, tol=1e-8, writing = True):
+    
+    # Define parameters to store w and loss
+    ws = [initial_w]
+    w = initial_w
+    losses = [compute_loss(y, tx, w, method="logistic")]
+    diff = 10
+    n_iter=0
+    
+    while (n_iter < max_iters) and (diff > tol):
+        # compute gradient
+        gd = compute_gradient(y, tx, w, 0.1, method="logistic")
+        hess = compute_hessian(y, tx, w)
+        
+        # compute next w
+        w = w - np.linalg.solve(hess,gd)
+        
+        # compute loss and diff
+        loss = compute_loss(y, tx, w) 
+        diff = abs(loss-losses[-1])
+        
+        # store w and loss and increment
+        ws.append(w)
+        losses.append(loss)
+        n_iter += 1
+        
+        if writing == True:
+            print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
+                  bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
     return losses, ws
        
 # --------------------------------------------------------------------------------
