@@ -24,6 +24,14 @@ def load_csv_data(data_path, sub_sample=False):
 
 # -----------------------------------------------------------------------------------
 
+def build_model_data(data, labels):
+    """Form (y,tX) to get regression data in matrix form."""
+    num_samples = len(labels)
+    tx = np.c_[np.ones(num_samples), data]
+    return labels, tx
+
+# -----------------------------------------------------------------------------------
+
 def predict_labels(weights, data, threshold = 0.5):
     """Generates class predictions given weights, and a test data matrix"""
     y_pred = np.dot(data, weights)
@@ -49,28 +57,8 @@ def create_csv_submission(ids, y_pred, name):
             writer.writerow({'Id':int(r1),'Prediction':int(r2)})
 
 # -----------------------------------------------------------------------------------
-def split_data(x, y, ratio=0.8, seed=1):
-    """split the dataset based on the split ratio."""
-    # set seed
-    np.random.seed(seed)
-    # generate random indices
-    num_row = len(y)
-    indices = np.random.permutation(num_row)
-    index_split = int(np.floor(ratio * num_row))
-    index_tr = indices[: index_split]
-    index_te = indices[index_split:]
-    # create split
-    x_tr = x[index_tr]
-    x_te = x[index_te]
-    y_tr = y[index_tr]
-    y_te = y[index_te]
-    return x_tr, y_tr, x_te, y_te
 
-
-
-
-
-def split_data_old(X, y, ratio=0.8, seed=1):
+def split_data(X, y, ratio=0.8, seed=1):
     """The split_data function will shuffle data randomly as well as return
     a split data set that are individual for training and testing purposes.
     The input X is a numpy array with samples in rows and features in columns.
@@ -100,6 +88,33 @@ def split_data_old(X, y, ratio=0.8, seed=1):
     y_test = y_shuff[train_num:]
 
     return X_train, y_train, X_test, y_test
+
+# -----------------------------------------------------------------------------------
+
+def build_k_indices(y, k_fold, seed):
+    """build k indices for k-fold."""
+    num_row = y.shape[0]
+    interval = int(num_row / k_fold)
+    np.random.seed(seed)
+    indices = np.random.permutation(num_row)
+    k_indices = [indices[k * interval: (k + 1) * interval] for k in range(k_fold)]
+    return np.array(k_indices)
+
+# -----------------------------------------------------------------------------------
+
+def cross_validation(y, x, k_indices, k, lambda_, degree):
+    """get subsets for cross validation"""
+
+    te_indice = k_indices[k]
+    tr_indice = k_indices[~(np.arange(k_indices.shape[0]) == k)]
+    tr_indice = tr_indice.reshape(-1)
+    
+    y_te = y[te_indice]
+    y_tr = y[tr_indice]
+    x_te = x[te_indice]
+    x_tr = x[tr_indice]
+    
+    return y_tr, x_tr, y_te, x_te
 
 # -----------------------------------------------------------------------------------
 
@@ -150,8 +165,8 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
 
 # -----------------------------------------------------------------------------------
             
-def process_data(data, labels, ids, zero = True, sample_filtering=True, feature_filtering=True):
-    """The process_data function prepares the data by performing
+def process_data(data, data_t, labels, ids, zero = False, sample_filtering = True, feature_filtering = True):
+    """The process_data function prepares the train and test data by performing
     some data cleansing techniques. Missing values which are set as -999
     are replaced by NaN, then the means of each features are calculated
     in order to replace NaN values by the means. Features and samples with
@@ -160,6 +175,7 @@ def process_data(data, labels, ids, zero = True, sample_filtering=True, feature_
     (required for transformation of unseen data."""
 
     data_process = np.array(data[:,:])
+    data_p_t = np.array(data_t[:,:])
     lab = np.array(labels[:])
     
     if zero == True:
@@ -168,24 +184,25 @@ def process_data(data, labels, ids, zero = True, sample_filtering=True, feature_
     
     # Setting missing values (-999) as NaN
     data_process[data_process == -999] = np.nan
+    data_p_t[data_p_t == -999] = np.nan
 
     # Filtering weak features and samples
 
     # Retrieving percentage for each feature 
     
-    idx_colremoved = []
     if feature_filtering:
         nan_count = np.count_nonzero(np.isnan(data_process),axis=0)/data_process.shape[0]
         
         # Filter out features which have NaN values higher than 60%
         data_set_filtered = []
+        data_t_filtered = []
         for idx, entry in enumerate(nan_count):
             if entry < 0.6:
                 # Append the column of the original dataset that is good
                 data_set_filtered.append(data_process.T[idx])
-            else:
-                idx_colremoved.append(idx)
+                data_t_filtered.append(data_p_t.T[idx])
         data_set_filtered = np.array(data_set_filtered).T
+        data_t_filtered = np.array(data_t_filtered).T
         
     if sample_filtering:
         data_set_filtered_2 = [] # Dataset filtered for features and samples
@@ -218,13 +235,17 @@ def process_data(data, labels, ids, zero = True, sample_filtering=True, feature_
 
     # Getting Rid of NaN and Replacing with mean
 
-    data_nan = data_set_filtered_2.copy() 
+    data_nan = data_set_filtered_2.copy()
+    data_t_nan = data_t_filtered.copy() 
     # Create list with average values of columns, excluding NaN values
     column_means = np.nanmean(data_nan, axis=0)
+    column_means_t = np.nanmean(data_t_nan, axis=0)
     
     # Variable containing locations of NaN in data frame
     inds = np.where(np.isnan(data_nan)) 
+    inds_t = np.where(np.isnan(data_t_nan)) 
     
     # Reassign locations of NaN to the column means
     data_nan[inds] = np.take(column_means, inds[1])
-    return (data_nan, y, ids_filt, idx_colremoved)
+    data_t_nan[inds_t] = np.take(column_means_t, inds_t[1])
+    return (data_nan, data_t_nan, y, ids_filt)

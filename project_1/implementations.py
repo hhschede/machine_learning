@@ -123,8 +123,9 @@ def build_poly(x, degree):
     
     poly = np.ones((len(x), 1))
     for deg in range(1, degree+1):
-        poly = np.c_[poly, np.power(x, deg)]
+        poly = np.c_[poly, np.power(x[:,1:], deg)]
     return poly
+
 
 # -----------------------------------------------------------------------------------
 
@@ -184,7 +185,7 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, metho
                 w -= gamma * grad
                 
                 ws[i+1] = w
-                losses.append(compute_loss(mini_y, h, w, method = "logistic"))
+                losses.append(compute_loss(mini_y, mini_X, w, method = "logistic"))
 
         if writing:
             if i % 500 == 0:
