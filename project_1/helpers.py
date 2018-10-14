@@ -135,7 +135,7 @@ def standardize(x):
 
 # -----------------------------------------------------------------------------------
 
-def standardize_test(x, means, variance)
+def standardize_test(x, means, variance):
     """Standardize the test set using training set means and variance"""
     center = x - means
     standard_data = center / variance
