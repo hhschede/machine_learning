@@ -106,7 +106,7 @@ def cross_validation(y, x, k_indices, k, lambda_, degree):
     """get subsets for cross validation"""
 
     te_indice = k_indices[k]
-    tr_indice = np.delete(k_indices, test_idx)
+    tr_indice = np.delete(k_indices, te_indice)
     
     y_te = y[te_indice]
     y_tr = y[tr_indice]
