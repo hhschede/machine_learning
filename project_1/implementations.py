@@ -3,7 +3,7 @@ from helpers import *
 
 # -----------------------------------------------------------------------------------
 
-def compute_loss(y, tx, w, lam = 0, method = "MSE"):
+def compute_loss(y, tx, w, lam = 0.1, method = "MSE"):
     """Calculate the loss."""
 
     if method == "MSE":
@@ -28,7 +28,7 @@ def compute_loss(y, tx, w, lam = 0, method = "MSE"):
 
 # -----------------------------------------------------------------------------------
 
-def compute_gradient(y, tx, w, lam=0.01, method = "MSE"):
+def compute_gradient(y, tx, w, lam=0.1, method = "MSE"):
     """Compute the gradient."""
     
     err = y - tx.dot(w)
@@ -184,7 +184,7 @@ def compute_accuracy_logistic_regression(y, tx, w, threshold = 0.5):
 
 # -----------------------------------------------------------------------------------
 
-def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, method = "sgd",batch_size = 250, writing = True):
+def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.05, method = "sgd",batch_size = 1000, writing = True):
     
     ws = np.zeros([max_iters + 1, tx.shape[1]])
     ws[0] = initial_w 
@@ -206,9 +206,9 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.01, metho
     if method == "sgd":
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
-                h = sigmoid(np.dot(mini_X, w))
-                grad = np.dot(mini_X.T, (h - mini_y)) / mini_y.shape[0]
-                
+                grad = compute_gradient(y, tx, initial_w)
+
+
                 w -= gamma * grad
                 
                 ws[i+1] = w
@@ -292,8 +292,3 @@ def reg_logistic_regression(y, tx, initial_w, lamb, max_iters = 10000, gamma = 0
                         iter = i, l=losses[-1] ))
 
     return losses, ws
-                          
-    
-                   
-     
-        
