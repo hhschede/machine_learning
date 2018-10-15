@@ -1,5 +1,6 @@
 import csv
 import numpy as np
+import random
 
 # -----------------------------------------------------------------------------------
 
@@ -172,7 +173,7 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
 
 # -----------------------------------------------------------------------------------
             
-def process_data(data, data_t, labels, ids, zero = False, sample_filtering = True, feature_filtering = True):
+def process_data(data, data_t, labels, ids, boolean = True, sample_filtering = False, feature_filtering = True):
     """The process_data function prepares the train and test data by performing
     some data cleansing techniques. Missing values which are set as -999
     are replaced by NaN, then the means of each features are calculated
@@ -184,10 +185,6 @@ def process_data(data, data_t, labels, ids, zero = False, sample_filtering = Tru
     data_process = np.array(data[:,:])
     data_p_t = np.array(data_t[:,:])
     lab = np.array(labels[:])
-    
-    if zero == True:
-        # Setting labels as 0 (background) or 1 (signal)
-        lab[labels == -1] = 0
     
     # Setting missing values (-999) as NaN
     data_process[data_process == -999] = np.nan
@@ -204,8 +201,11 @@ def process_data(data, data_t, labels, ids, zero = False, sample_filtering = Tru
         data_set_filtered = []
         data_t_filtered = []
         for idx, entry in enumerate(nan_count):
-            if entry < 0.6:
+            if (entry  < 0.6):
                 # Append the column of the original dataset that is good
+                data_set_filtered.append(data_process.T[idx])
+                data_t_filtered.append(data_p_t.T[idx])
+            elif (entry >= 0.6) and boolean:
                 data_set_filtered.append(data_process.T[idx])
                 data_t_filtered.append(data_p_t.T[idx])
         data_set_filtered = np.array(data_set_filtered).T
@@ -227,8 +227,8 @@ def process_data(data, data_t, labels, ids, zero = False, sample_filtering = Tru
                 y.append(lab[idx])
                 ids_filt.append(ids[idx])
                 data_set_filtered_2.append(data_set_filtered[idx])
-        data_set_filtered_2 = np.array(data_set_filtered_2)
-        y = np.array(y)
+        data_set_filtered = np.array(data_set_filtered_2)
+        lab = np.array(y)
 
 
     # Print new dimensions of the dataframe after filtering
@@ -237,12 +237,12 @@ def process_data(data, data_t, labels, ids, zero = False, sample_filtering = Tru
           ' and {1} columns. After feature and sample filtering, there are'
           ' {2} samples and {3} columns'.format(data_process.shape[0],
                                                 data_process.shape[1],
-                                                data_set_filtered_2.shape[0],
-                                                data_set_filtered_2.shape[1]))
+                                                data_set_filtered.shape[0],
+                                                data_set_filtered.shape[1]))
 
     # Getting Rid of NaN and Replacing with mean
 
-    data_nan = data_set_filtered_2.copy()
+    data_nan = data_set_filtered.copy()
     data_t_nan = data_t_filtered.copy() 
     # Create list with average values of columns, excluding NaN values
     column_means = np.nanmean(data_nan, axis=0)
@@ -255,4 +255,4 @@ def process_data(data, data_t, labels, ids, zero = False, sample_filtering = Tru
     # Reassign locations of NaN to the column means
     data_nan[inds] = np.take(column_means, inds[1])
     data_t_nan[inds_t] = np.take(column_means_t, inds_t[1])
-    return (data_nan, data_t_nan, y, ids_filt)
+    return (data_nan, data_t_nan, lab)
