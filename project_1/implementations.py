@@ -1,6 +1,44 @@
 import numpy as np
 from helpers import *
 
+def prepare_standardplot(title, xlabel):
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    fig.suptitle(title)
+    ax1.set_ylabel('loss')
+    ax1.set_xlabel(xlabel)
+    ax1.set_yscale('log')
+    ax2.set_ylabel('accuracy [% correct]')
+    ax2.set_xlabel(xlabel)
+    return fig, ax1, ax2
+
+def finalize_standardplot(fig, ax1, ax2):
+    ax1handles, ax1labels = ax1.get_legend_handles_labels()
+    if len(ax1labels) > 0:
+        ax1.legend(ax1handles, ax1labels)
+    ax2handles, ax2labels = ax2.get_legend_handles_labels()
+    if len(ax2labels) > 0:
+        ax2.legend(ax2handles, ax2labels)
+    fig.tight_layout()
+    plt.subplots_adjust(top=0.9)
+
+def plotCurves(tr_loss, tr_acc, ts_loss, ts_acc, title):
+    fig, ax1, ax2 = prepare_standardplot(title, 'epoch')
+    ax1.plot(tr_loss, label = "training")
+    ax1.plot(ts_loss, label = "validation")
+    ax2.plot(tr_acc, label = "training")
+    ax2.plot(ts_acc, label = "validation")
+    finalize_standardplot(fig, ax1, ax2)
+    return fig
+
+
+def predict_labels_logistic(weights, data, threshold = 0.5):
+    """Generates class predictions given weights, and a test data matrix"""
+    y_pred = sigmoid(np.dot(data, weights))
+    y_pred[np.where(y_pred <= threshold)] = -1
+    y_pred[np.where(y_pred > threshold)] = 1
+    
+    return y_pred
+
 # -----------------------------------------------------------------------------------
 
 def compute_loss(y, tx, w, lam = 0.1, method = "MSE"):
@@ -189,7 +227,7 @@ def compute_accuracy_logistic_regression(y, tx, w, threshold = 0.5):
 
 # -----------------------------------------------------------------------------------
 
-def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, method = "sgd",batch_size = 1000, writing = True):
+def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, method = "sgd",batch_size = 1000, writing = False):
     
     ws = np.zeros([max_iters + 1, tx.shape[1]])
     ws[0] = initial_w 
@@ -208,7 +246,7 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, met
             if writing:
                 if i % 500 == 0:
                     print("iteration: {iter} | loss : {l}".format(
-                        iter = i, l=losses[-1] ))
+                        iter = i, l=losses_tr[-1] ))
     if method == "sgd":
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
@@ -218,13 +256,13 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, met
                 w -= gamma * grad
                 
                 ws[i+1] = w
-                losses_tr.append(compute_loss(mini_y, mini_X, w,lam = 0 method = "logistic"))
+                losses_tr.append(compute_loss(mini_y, mini_X, w,lam = 0, method = "logistic"))
                 
 
         if writing:
             if i % 500 == 0:
                 print("iteration: {iter} | loss : {l}".format(
-                    iter = i, l=losses[-1] ))
+                    iter = i, l=losses_tr[-1] ))
     return losses_tr, ws
 
 # -----------------------------------------------------------------------------------
