@@ -42,6 +42,7 @@ def predict_labels(weights, data, threshold = 0.5):
     
     return y_pred
 
+
 # -----------------------------------------------------------------------------------
 
 def create_csv_submission(ids, y_pred, name):
@@ -121,7 +122,7 @@ def cross_validation(y, x, k_indices, k, lambda_, degree):
 
 def pred_accuracy(predict, y):
     compare = (predict == y)
-    percent = compare.mean()
+    percent = np.mean(compare)
     return percent
 
 # -----------------------------------------------------------------------------------
