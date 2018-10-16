@@ -20,6 +20,9 @@ def compute_loss(y, tx, w, lam = 0.1, method = "MSE"):
         loss[idx] = np.log(1 + np.exp(-z[idx]))
         loss[~idx] = (-z[~idx] + np.log(1 + np.exp(z[~idx])))
         loss = loss.sum() + 0.5 * lam * w.dot(w)
+    elif method == "logistic2":
+        h = tx.dot(w)
+        loss = (-y * np.log(h) - (1 - y) * np.log(1 - h)).mean()
     
     elif method == 'reg_logistic':
         loss = np.mean((-y * np.log(sigmoid(tx.dot(w))) - (1 - y) * np.log(1 - sigmoid(tx.dot(w)))) + 0.5 * lam * np.linalg.norm(w)) ** 2
@@ -42,7 +45,9 @@ def compute_gradient(y, tx, w, lam=0.1, method = "MSE"):
         z = sigmoid(y * tx.dot(w))
         z0 = (z - 1) * y
         grad = tx.T.dot(z0) + lam * w
-        return grad
+    elif method == "logistic2":
+        h = sigmoid(tx.dot(w))
+        grad = (tx.T.dot(h-y) + lam*w)/y.shape[0]
     
     return grad
 
@@ -184,21 +189,22 @@ def compute_accuracy_logistic_regression(y, tx, w, threshold = 0.5):
 
 # -----------------------------------------------------------------------------------
 
-def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.05, method = "sgd",batch_size = 1000, writing = True):
+def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, method = "sgd",batch_size = 1000, writing = True):
     
     ws = np.zeros([max_iters + 1, tx.shape[1]])
     ws[0] = initial_w 
-    losses = []
+    losses_tr = []
     w = initial_w
     
     if method == "gd":
         for i in range(max_iters):
-            grad = compute_gradient(y, tx, initial_w)
-
+            grad = compute_gradient(y, tx, initial_w, lam=0, method = "logistic2")
+            
             w -= gamma * grad
             ws[i+1] = w
-            losses.append(compute_loss(y, tx, w, method = "logistic"))
-
+            losses_tr.append(compute_loss(y, tx, w, lam = 0, method = 'logistic'))
+            
+            
             if writing:
                 if i % 500 == 0:
                     print("iteration: {iter} | loss : {l}".format(
@@ -206,19 +212,20 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.05, metho
     if method == "sgd":
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
-                grad = compute_gradient(y, tx, initial_w)
+                grad = compute_gradient(y, tx, initial_w,lam=0, method = "logistic2")
 
 
                 w -= gamma * grad
                 
                 ws[i+1] = w
-                losses.append(compute_loss(mini_y, mini_X, w, method = "logistic"))
+                losses_tr.append(compute_loss(mini_y, mini_X, w,lam = 0 method = "logistic"))
+                
 
         if writing:
             if i % 500 == 0:
                 print("iteration: {iter} | loss : {l}".format(
                     iter = i, l=losses[-1] ))
-    return losses, ws
+    return losses_tr, ws
 
 # -----------------------------------------------------------------------------------
 
@@ -292,3 +299,29 @@ def reg_logistic_regression(y, tx, initial_w, lamb, max_iters = 10000, gamma = 0
                         iter = i, l=losses[-1] ))
 
     return losses, ws
+
+
+
+def PCA(data, threshold = 1):
+    cov_matrix = np.cov(data.T)
+    eigenVal, eigenVec = np.linalg.eig(cov_matrix)
+
+    idx = eigenVal.argsort()[::-1]   
+    eigenVal = np.asarray(eigenVal[idx])
+    eigenVec = np.asarray(eigenVec[:,idx])
+
+
+    eigenVal=eigenVal/sum(eigenVal)
+
+
+    sumEigenVal = [0]
+    k = 0
+    while(sumEigenVal[-1] < threshold):
+        sumEigenVal.append(sumEigenVal[-1] + eigenVal[k])
+        k = k+1
+
+    #keep only kth first dimension
+
+    eigenVec=eigenVec[:,:(k)]
+    
+    return eigenVal,eigenVec,sumEigenVal
