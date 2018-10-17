@@ -140,7 +140,10 @@ def standardize(x):
     mean = np.mean(x, axis=0)
     center = x - mean
     variance = np.std(center, axis=0)
-    standard_data = center / variance
+    try:
+        standard_data = center / variance
+    except RuntimeWarning:
+        standard_data = center
     return standard_data, mean, variance
 
 # -----------------------------------------------------------------------------------
@@ -148,7 +151,10 @@ def standardize(x):
 def standardize_test(x, means, variance):
     """Standardize the test set using training set means and variance"""
     center = x - means
-    standard_data = center / variance
+    try:
+        standard_data = center / variance
+    except RuntimeWarning:
+        standard_data = center
     return standard_data
 
 # -----------------------------------------------------------------------------------
