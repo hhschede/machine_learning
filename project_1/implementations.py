@@ -245,7 +245,12 @@ def least_squares(y, tx, k=4):
             y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
             X = x_tr.T.dot(x_tr)
             Y = x_tr.T.dot(y_tr)
-            w = np.linalg.solve(X,Y)
+            try:
+                w = np.linalg.solve(X,Y)
+            except np.linalg.LinAlgError as err: # Due to a singular matrix, need to add some noise for it to work
+                X += 0.000001
+                Y += 0.000001
+                w = np.linalg.solve(X,Y)
             test_loss.append(compute_loss(y_te, x_te, w))
             training_loss.append(compute_loss(y_tr, x_tr, w))
 
