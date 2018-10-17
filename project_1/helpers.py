@@ -105,18 +105,26 @@ def build_k_indices(y, k_fold, seed):
 
 # -----------------------------------------------------------------------------------
 
-def cross_validation(y, x, k_indices, k, lambda_, degree):
+def cross_val(y, x, k, lambda_, degree):
     """get subsets for cross validation"""
+    
+    k_indices = build_k_indices(y, k, 0)
 
-    te_indice = k_indices[k]
-    tr_indice = np.delete(k_indices, te_indice)
+    for i in np.arange(k):
+        te_indice = k_indices[i]
+        tr_indice = k_indices[~(np.arange(k_indices.shape[0]) == i)]
+        tr_indice = tr_indice.reshape(-1)
+        y_te = y[te_indice]
+        y_tr = y[tr_indice]
+        x_te = x[te_indice]
+        x_tr = x[tr_indice]
+        
+        # standardize the sets
+        
+        x_train, mean, variance = standardize(x_tr)
+        x_test = standardize_test(x_te, mean, variance)
     
-    y_te = y[te_indice]
-    y_tr = y[tr_indice]
-    x_te = x[te_indice]
-    x_tr = x[tr_indice]
-    
-    return y_tr, x_tr, y_te, x_te
+        yield np.array(y_tr), np.array(x_train), np.array(y_te), np.array(x_test) #this is a generator! call next(object) for next set
 
 # -----------------------------------------------------------------------------------
 

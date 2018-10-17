@@ -101,37 +101,81 @@ def compute_hessian(y, tx, w):
     return hess
 
 # -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# LEARNING ALGORITHM FUNCTIONS
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 
-def least_squares_GD(y, tx, initial_w, tol = 1e-8, max_iters = 10000, gamma = 0.05, write = False):
-    """Gradient descent algorithm."""
+def least_squares_GD(y, tx, initial_w, tol = 1e-5, max_iters = 10000, gamma = 0.05, k=4,  write = False):
+    """Gradient descent algorithm with option for cross validation. 
     
-    # Define parameters to store w and loss
-    ws = [initial_w]
-    w = initial_w
-    losses = [compute_loss(y, tx, w)]
-    diff = losses[0]
-    n_iter=0
+    For cross validation: If k is set to > 0, then the function returns
+    the average test loss between the trials, the variance between the trials, the vector of test losses over 
+    gradient descent (for each cross validation, so it is a list of lists), the training loss and the 
+    last w that was retrieved from the last trial (if one wants to use it for plotting etc)
     
-    while (n_iter < max_iters) and (diff > tol):
-        # compute gradient
-        gd = compute_gradient(y, tx, w)
-        
-        # compute next w
-        w = w - gamma*gd
-        
-        # compute loss and diff
-        loss = compute_loss(y, tx, w) 
-        diff = abs(loss-losses[-1])
-        
-        # store w and loss and increment
-        ws.append(w)
-        losses.append(loss)
-        n_iter += 1
-        
-        if write == True:
-            print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
-                  bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
-    return losses, ws
+    For retrieving the optimal w: If k is set to 0, the entire y and tx values given to the function will
+    be used to calculate the optimal w. the only value that will be returned is w"""
+    
+    test_loss = []
+    test_losses_vector = []
+    training_loss = []
+
+    # This if is for a final model, that is - if we want to get the best w's (so use all training samples)
+    
+    if k == 0:
+        n_iter = 0
+        w = initial_w
+        while n_iter < max_iters:
+            # compute gradient
+            gd = compute_gradient(y, tx, w)
+            # compute next w
+            w = w - gamma*gd
+            n_iter += 1
+            
+        return w
+    
+    # This else is for determining if this is a good way to select the model - return test and training errors
+    else:
+        gen = cross_val(y, tx, k, 0.01, 2) # initiate generator object
+        for i in np.arange(k):
+            y_tr, x_tr, y_te, x_te = next(gen)
+
+            # Define parameters to store w and loss
+            # ws = [initial_w]
+            w = initial_w
+            my_losses = [compute_loss(y_tr, x_tr, w)]
+            test_mylosses = []
+            loss = my_losses[0]
+            n_iter=0
+            while n_iter < max_iters:
+                # compute gradient
+                gd = compute_gradient(y_tr, x_tr, w)
+                # compute next w
+                w = w - gamma*gd
+                # compute loss and diff
+                loss = compute_loss(y_tr, x_tr, w)
+                # store w and loss and increment
+                # ws.append(w)
+                n_iter += 1
+                my_losses.append(loss)
+                test_mylosses.append(compute_loss(y_te, x_te, w))
+                if abs(my_losses[-1] - my_losses[-2]) < tol:
+                    break
+                    
+                if write == True:
+                    print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
+            test_losses_vector.append(test_mylosses)
+            # append the test_loss to the list so it can be averaged at the end
+            test_loss.append(compute_loss(y_te, x_te, w))
+            training_loss.append(loss)
+            
+            
+        return np.array(test_loss).mean(), np.array(test_loss).var(), np.array(test_losses_vector), np.array(training_loss).mean(), w
 
 # -----------------------------------------------------------------------------------
 
@@ -173,13 +217,39 @@ def least_squares_SGD(y, tx, initial_w, batch_size = 1000, tol = 1e-4,patience =
 
 # -----------------------------------------------------------------------------------
 
-def least_squares(y, tx):
-    """Calculate the least squares solution."""
+def least_squares(y, tx, k=4):
+    """Calculate the least square solution with cross validation option
     
-    X = tx.T.dot(tx)
-    Y = tx.T.dot(y)
+    Setting k == 0 will return the optimal w vector given the entire dataset fed to the function
     
-    return np.linalg.solve(X, Y)
+    Setting k > 0 will split the dataset given to the function into k folds to perform CV on. This
+    will result in returning the following values:
+        (the mean of the test losses, the variance of the test losses, 
+        the mean of the training set losses and the last value for w that was calculated)."""
+    
+    test_loss = []
+    training_loss = []
+    
+    
+    # If k == 0, the function returns the best w given the entire dataset used as input
+    if k ==0:
+        X = tx.T.dot(tx)
+        Y = tx.T.dot(y)
+        w = np.linalg.solve(X,Y)
+        return w
+
+    # If k > 0, determine if this is a good way to select the model (retrieve variance and bias)
+    else:
+        gen = cross_val(y, tx, k, 0.01, 2) # initiate generator object
+        for i in np.arange(k):
+            y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
+            X = x_tr.T.dot(x_tr)
+            Y = x_tr.T.dot(y_tr)
+            w = np.linalg.solve(X,Y)
+            test_loss.append(compute_loss(y_te, x_te, w))
+            training_loss.append(compute_loss(y_tr, x_tr, w))
+
+        return np.array(test_loss).mean(), np.array(test_loss).var(), np.array(training_loss).mean(), w
 
 # -----------------------------------------------------------------------------------
 # this will have to be changed to the build_poly(x, degree): function!!!!!!!!
