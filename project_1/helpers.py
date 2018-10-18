@@ -1,7 +1,6 @@
 import csv
 import numpy as np
 import random
-
 import matplotlib.pyplot as plt
 # -----------------------------------------------------------------------------------
 
@@ -34,9 +33,9 @@ def build_model_data(data, labels):
 
 # -----------------------------------------------------------------------------------
 
-def predict_labels(weights, data, threshold = 0.5):
+def predict_labels(weights, data, threshold = 0):
     """Generates class predictions given weights, and a test data matrix"""
-    y_pred = np.dot(data, weights)
+    y_pred = (np.dot(data, weights))
     y_pred[np.where(y_pred <= threshold)] = -1
     y_pred[np.where(y_pred > threshold)] = 1
     
@@ -140,6 +139,7 @@ def standardize(x):
     mean = np.mean(x, axis=0)
     center = x - mean
     variance = np.std(center, axis=0)
+    variance[variance==0] = 0.00001
     try:
         standard_data = center / variance
     except RuntimeWarning:
@@ -189,7 +189,7 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
 
 # -----------------------------------------------------------------------------------
             
-def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_filtering = True, replace = 'zero'):
+def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_filtering = True, remove_outlier = True, replace = 'zero'):
     """The process_data function prepares the train and test data by performing
     some data cleansing techniques. Missing values which are set as -999
     are replaced by NaN, then the means of each features are calculated
@@ -247,7 +247,6 @@ def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_fil
 
     print(' After feature and sample filtering, there are {0} samples and {1} columns'.format(data_process_tr.shape[0],data_process_tr.shape[1]))
     
-    
     if replace == 'mean':
         # Getting Rid of NaN and Replacing with mean
         # Create list with average values of columns, excluding NaN values
@@ -272,5 +271,36 @@ def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_fil
         data_process_tr[inds] = 0
         data_process_ts[inds_t] = 0
         
-    
+    if remove_outlier:
+
+        column_means = np.mean(data_process_tr, axis=0)
+        column_means_t = np.mean(data_process_ts, axis=0)
+
+        column_std = np.std(data_process_tr, axis=0)
+        column_std_t = np.std(data_process_ts, axis=0)
+        
+        data_tr = np.zeros(data_process_tr.shape)
+        data_ts = np.zeros(data_process_ts.shape)
+        
+        for i in range(len(column_means)):
+            col = data_process_tr[:,i]
+            thresh_sup = column_means[i] + 3*column_std[i]
+            thresh_inf = column_means[i] - 3*column_std[i]
+            
+            col_t = data_process_ts[:,i]
+            thresh_ts = column_means_t[i] + 3*column_std_t[i]
+            thresh_ti = column_means_t[i] - 3*column_std_t[i]
+            
+            col[col >= thresh_sup] = column_means[i]
+            col[col <= thresh_inf] = column_means[i]
+            
+            col_t[col_t >= thresh_ts] = column_means[i]
+            col_t[col_t <= thresh_ti] = column_means[i]
+
+            data_tr[:,i] = col
+            
+            data_ts[:,i] = col_t
+        
+        data_process_tr = data_tr.copy()
+        data_process_ts = data_ts.copy()
     return (data_process_tr, data_process_ts, lab)
