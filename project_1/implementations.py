@@ -82,10 +82,10 @@ def compute_gradient(y, tx, w, lam=0.1, method = "MSE"):
     elif method == "logistic":
         z = sigmoid(y * tx.dot(w))
         z0 = (z - 1) * y
-        grad = (tx.T.dot(z0) + lam * w)/y.shape[0]
+        grad = tx.T.dot(z0) + lam * w
     elif method == "logistic2":
         h = sigmoid(tx.dot(w))
-        grad = (tx.T.dot(h-y))/y.shape[0] + lam*w
+        grad = (tx.T.dot(h-y) + lam*w)/y.shape[0]
     
     return grad
 
@@ -311,7 +311,7 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, met
     
     if method == "gd":
         for i in range(max_iters):
-            grad = compute_gradient(y, tx, initial_w, lam=0, method = "logistic")
+            grad = compute_gradient(y, tx, initial_w, lam=0, method = "logistic2")
             
             w -= gamma * grad
             ws[i+1] = w
@@ -325,7 +325,7 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, met
     if method == "sgd":
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
-                grad = compute_gradient(y, tx, initial_w,lam=0, method = "logistic")
+                grad = compute_gradient(y, tx, initial_w,lam=0, method = "logistic2")
 
 
                 w -= gamma * grad
