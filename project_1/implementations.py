@@ -31,11 +31,11 @@ def plotCurves(tr_loss, tr_acc, ts_loss, ts_acc, title):
     return fig
 
 
-def predict_labels_logistic(weights, data, threshold = 0.7):
+def predict_labels_logistic(weights, data, threshold = 0.5):
     """Generates class predictions given weights, and a test data matrix"""
-    y_pred = sigmoid(data.dot(weights))
-    y_pred[np.where(y_pred < threshold)] = -1
-    y_pred[np.where(y_pred >= threshold)] = 1
+    y_pred = sigmoid(np.dot(data, weights))
+    y_pred[np.where(y_pred <= threshold)] = -1
+    y_pred[np.where(y_pred > threshold)] = 1
     
     return y_pred
 
@@ -47,21 +47,29 @@ def compute_loss(y, tx, w, lam = 0.1, method = "MSE"):
     if method == "MSE":
         err = y - tx.dot(w)
         loss = 1/2*np.mean(err**2)
-        
     elif method == "MAE":  
         err = y - tx.dot(w)
         loss = np.mean(np.abs(err))
         
     elif method == "logistic":
-        err = y - sigmoid(tx.dot(w))
-        loss = 0.5*np.mean(err**2)
+        z = y * tx.dot(w)
+        idx = z > 0
+        loss = np.zeros(z.shape)
+        loss[idx] = np.log(1 + np.exp(-z[idx]))
+        loss[~idx] = (-z[~idx] + np.log(1 + np.exp(z[~idx])))
+        loss = loss.sum() + 0.5 * lam * w.dot(w)
+    elif method == "logistic2":
+        h = tx.dot(w)
+        loss = (-y * np.log(h) - (1 - y) * np.log(1 - h)).mean()
+    
+    elif method == 'reg_logistic':
+        loss = np.mean((-y * np.log(sigmoid(tx.dot(w))) - (1 - y) * np.log(1 - sigmoid(tx.dot(w)))) + 0.5 * lam * np.linalg.norm(w)) ** 2
     
     return loss
 
 # -----------------------------------------------------------------------------------
 
 def compute_gradient(y, tx, w, lam=0.1, method = "MSE"):
-
     """Compute the gradient."""
     
     err = y - tx.dot(w)
@@ -74,17 +82,64 @@ def compute_gradient(y, tx, w, lam=0.1, method = "MSE"):
     elif method == "logistic":
         z = sigmoid(y * tx.dot(w))
         z0 = (z - 1) * y
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+        grad = tx.T.dot(z0) + lam * w
+    elif method == "logistic2":
+        h = sigmoid(tx.dot(w))
+        grad = (tx.T.dot(h-y) + lam*w)/y.shape[0]
+    
+=======
         grad = (tx.T.dot(z0) + lam * w)/len(y)
+>>>>>>> d828b354391509fd36db0565c726994f35235bcd
+=======
+=======
+>>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
+        grad = (tx.T.dot(z0) + lam * w)/y.shape[0]
+    elif method == "logistic2":
+        h = sigmoid(tx.dot(w))
+        grad = (tx.T.dot(h-y))/y.shape[0] + lam*w
+    
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
     return grad
 
 # -----------------------------------------------------------------------------------
 
-def compute_hessian(y, tx, w, lam):
+def compute_hessian(y, tx, w):
     """return the hessian of the loss function."""
-    z = sigmoid(tx.dot(w))
-    D = z * (1-z)
-    XD = tx * D.reshape(-1,1)
-    hess = tx.T.dot(XD) + lam*np.eye((tx.shape[1]))
+    z = sigmoid(y * tx.dot(w))
+    d = z*(1-z)
+    wa = d[:, np.newaxis]*tx
+    Hs = tx.T.dot(wa)
+    hess = Hs 
     return hess
 
 # -----------------------------------------------------------------------------------
@@ -249,9 +304,9 @@ def least_squares(y, tx, k=4):
 def build_poly(x, degree):
     """Polynomial basis functions for input data x, for j=0 up to j=degree."""
     
-    poly = x
-    for deg in range(2, degree+1):
-        poly = np.c_[poly, np.power(x, deg)]
+    poly = np.ones((len(x), 1))
+    for deg in range(1, degree+1):
+        poly = np.c_[poly, np.power(x[:,1:], deg)]
     return poly
 
 
@@ -298,7 +353,7 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, met
     
     if method == "gd":
         for i in range(max_iters):
-            grad = compute_gradient(y, tx, initial_w, lam=0, method = "logistic")
+            grad = compute_gradient(y, tx, initial_w, lam=0, method = "logistic2")
             
             w -= gamma * grad
             ws[i+1] = w
@@ -312,7 +367,7 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, met
     if method == "sgd":
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
-                grad = compute_gradient(y, tx, initial_w,lam=0, method = "logistic")
+                grad = compute_gradient(y, tx, initial_w,lam=0, method = "logistic2")
 
 
                 w -= gamma * grad
@@ -329,50 +384,36 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, met
 
 # -----------------------------------------------------------------------------------
 
-def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, tol=1e-8, writing = True, threshold = 0.5):
+def logistic_hessian(y, tx, initial_w, max_iters = 100, tol=1e-8, writing = True):
     
-    # Define parameters to store w
+    # Define parameters to store w and loss
+    ws = [initial_w]
     w = initial_w
-    
-    # Compute losses
     losses = [compute_loss(y, tx, w, method="logistic")]
-    losses_t = [compute_loss(y_t, tx_t, w, method="logistic")]
-    
-    pred = predict_labels_logistic(w, tx, threshold)
-    acc = [pred_accuracy(pred, y)]
-    
-    pred_t = predict_labels_logistic(w, tx_t, threshold)
-    acc_t = [pred_accuracy(pred_t, y_t)]
-    
     diff = 10
     n_iter=0
     
     while (n_iter < max_iters) and (diff > tol):
         # compute gradient
-        gd = compute_gradient(y, tx, w, method="logistic")
-        hess = compute_hessian(y, tx, w, lam)
+        gd = compute_gradient(y, tx, w, 0.1, method="logistic")
+        hess = compute_hessian(y, tx, w)
         
         # compute next w
-        w = w - gamma*np.linalg.solve(hess,gd)
+        w = w - np.linalg.solve(hess,gd)
         
         # compute loss and diff
-        losses.append(compute_loss(y, tx, w, method="logistic"))
-        pred = predict_labels_logistic(w, tx, threshold)
-        acc.append(pred_accuracy(pred, y))
+        loss = compute_loss(y, tx, w) 
+        diff = abs(loss-losses[-1])
         
-        losses_t.append(compute_loss(y_t, tx_t, w, method="logistic"))
-        pred_t = predict_labels_logistic(w, tx_t, threshold)
-        acc_t.append(pred_accuracy(pred_t, y_t))
-        
-        diff = abs(losses[-2]-losses[-1])
-        
+        # store w and loss and increment
+        ws.append(w)
+        losses.append(loss)
         n_iter += 1
         
-        if writing:
-            if n_iter % 25 == 0:
-                print("It's working")
-            
-    return losses, losses_t, acc, acc_t, w
+        if writing == True:
+            print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
+                  bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
+    return losses, ws
        
 # --------------------------------------------------------------------------------
 
