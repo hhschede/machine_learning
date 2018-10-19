@@ -129,6 +129,8 @@ def least_squares_GD(y, tx, initial_w, tol = 1e-5, max_iters = 10000, gamma = 0.
     # This else is for determining if this is a good way to select the model - return test and training errors
     else:
         gen = cross_val(y, tx, k, 0.01, 2) # initiate generator object
+        w_final = []
+        accuracies = []
         for i in np.arange(k):
             y_tr, x_tr, y_te, x_te = next(gen)
 
@@ -152,17 +154,22 @@ def least_squares_GD(y, tx, initial_w, tol = 1e-5, max_iters = 10000, gamma = 0.
                 my_losses.append(loss)
                 test_mylosses.append(compute_loss(y_te, x_te, w))
                 if abs(my_losses[-1] - my_losses[-2]) < tol:
-                    break
+                    continue
                     
                 if write == True:
                     print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
             test_losses_vector.append(test_mylosses)
+            # Append the list of test accuracies
+            w_final.append(w)
+            test_pred_lab = predict_labels(w, x_te)
+            accuracies.append(pred_accuracy(test_pred_lab, y_te))
+
             # append the test_loss to the list so it can be averaged at the end
             test_loss.append(compute_loss(y_te, x_te, w))
             training_loss.append(loss)
             
             
-        return np.array(test_loss).mean(), np.array(test_loss).var(), np.array(test_losses_vector), np.array(training_loss).mean(), w
+        return np.array(test_loss).mean(), np.array(test_loss).var(), np.array(test_losses_vector), np.array(training_loss).mean(), w_final, accuracies
 
 # -----------------------------------------------------------------------------------
 
