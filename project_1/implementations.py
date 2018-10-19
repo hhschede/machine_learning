@@ -85,6 +85,7 @@ def compute_gradient(y, tx, w, lam=0.1, method = "MSE"):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         grad = tx.T.dot(z0) + lam * w
     elif method == "logistic2":
         h = sigmoid(tx.dot(w))
@@ -96,12 +97,17 @@ def compute_gradient(y, tx, w, lam=0.1, method = "MSE"):
 =======
 =======
 >>>>>>> parent of d828b35... changes
+=======
+>>>>>>> parent of d828b35... changes
         grad = (tx.T.dot(z0) + lam * w)/y.shape[0]
     elif method == "logistic2":
         h = sigmoid(tx.dot(w))
         grad = (tx.T.dot(h-y))/y.shape[0] + lam*w
     
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of d828b35... changes
+=======
 >>>>>>> parent of d828b35... changes
 =======
 >>>>>>> parent of d828b35... changes
