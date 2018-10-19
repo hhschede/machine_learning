@@ -234,6 +234,8 @@ def least_squares(y, tx, k=4):
 
     # If k > 0, determine if this is a good way to select the model (retrieve variance and bias)
     else:
+        w_final = []
+        accuracies = []
         gen = cross_val(y, tx, k, 0.01, 2) # initiate generator object
         for i in np.arange(k):
             y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
@@ -247,8 +249,12 @@ def least_squares(y, tx, k=4):
                 w = np.linalg.solve(X,Y)
             test_loss.append(compute_loss(y_te, x_te, w))
             training_loss.append(compute_loss(y_tr, x_tr, w))
-
-        return np.array(test_loss).mean(), np.array(test_loss).var(), np.array(training_loss).mean(), w
+            
+            # Append test accuracies
+            w_final.append(w)
+            test_pred_lab = predict_labels(w, x_te)
+            accuracies.append(pred_accuracy(test_pred_lab, y_te))
+        return np.array(test_loss).mean(), np.array(test_loss).var(), np.array(training_loss).mean(), w_final, accuracies
 
 # -----------------------------------------------------------------------------------
 # this will have to be changed to the build_poly(x, degree): function!!!!!!!!
