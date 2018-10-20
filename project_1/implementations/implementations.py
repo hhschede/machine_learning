@@ -1,7 +1,15 @@
 import numpy as np
 from helpers import *
 
-# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# UTILITY FUNCTIONS
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 
 def compute_loss(y, tx, w, lam = 0, method = "MSE"):
     """Calculate the loss."""
@@ -22,8 +30,7 @@ def compute_loss(y, tx, w, lam = 0, method = "MSE"):
 
 # -----------------------------------------------------------------------------
 
-def compute_gradient(y, tx, w, lam=0, method = "MSE"):
-
+def compute_gradient(y, tx, w, lambda_=0, method = "MSE"):
     """Compute the gradient."""
     
     err = y - tx.dot(w)
@@ -31,27 +38,29 @@ def compute_gradient(y, tx, w, lam=0, method = "MSE"):
         grad = -tx.T.dot(err)/len(err)
         
     elif method == "MAE":
-        grad = -tx.T.dot(np.sign(e))/len(y)
+        grad = -tx.T.dot(np.sign(e))/len(err)
         
     elif method == "logistic":
         z = sigmoid(y * tx.dot(w))
         z0 = (z - 1) * y
-        grad = (tx.T.dot(z0) + lam * w)/len(y)
+        grad = (tx.T.dot(z0) + lambda_ * w)/len(y)
     return grad
 
 # -----------------------------------------------------------------------------
 
-def build_model_data(data, labels):
+def build_model_data(x, y):
     """Form (y,tX) to get regression data in matrix form."""
-    num_samples = len(labels)
-    tx = np.c_[np.ones(num_samples), data]
-    return labels, tx
+    
+    num_samples = len(y)
+    tx = np.c_[np.ones(num_samples), x]
+    return y, tx
 
 # -----------------------------------------------------------------------------
 
 
 def build_poly(x, degree):
-    """Polynomial basis functions for input data x, for j=0 up to j=degree."""
+    """Polynomial basis functions for input data x."""
+    
     poly = x
     for deg in range(2, degree+1):
         poly = np.c_[poly, np.power(x, deg)]
@@ -59,8 +68,35 @@ def build_poly(x, degree):
 
 # -----------------------------------------------------------------------------
 
+def build_interact_terms(x):
+    """Calculates interaction terms for each feature."""
+    
+    interact = (x[:,1:].T * x[:,0]).T
+    for i in range(1, x.shape[1]):
+        interact = np.c_[interact, (x[:,(i+1):].T*x[:,i]).T]
+    return interact
+
+# -----------------------------------------------------------------------------
+
+def build_three_way(x):
+    """Calculates triple interaction terms for each feature."""
+    
+    interact = []
+    result = x
+    for i in range(x.shape[1]):
+        interact = (x[:,(i+1):].T*x[:,i]).T
+        for j in range(interact.shape[1]):
+            result = np.c_[result, (x[:,(i+j+1):].T*interact[:,j]).T]
+        print(i)
+    return result
+
+"""Takes too much time to compute, either we do it another way or we don't do it."""
+
+# -----------------------------------------------------------------------------
+
 def build_k_indices(y, k_fold, seed):
     """build k indices for k-fold."""
+    
     num_row = y.shape[0]
     interval = int(num_row / k_fold)
     np.random.seed(seed)
@@ -84,14 +120,12 @@ def cross_val(y, x, k, lambda_, degree):
         x_te = x[te_indice]
         x_tr = x[tr_indice]
         
-        # standardize the sets
+        # Standardize the sets
         
         x_train, mean, variance = standardize(x_tr)
         x_test = standardize_test(x_te, mean, variance)
-    
-        yield np.array(y_tr), np.array(x_train), np.array(y_te), np.array(x_test) #this is a generator! call next(object) for next set
-
-
+        # This is a generator! Call next(object) for next set
+        yield np.array(y_tr), np.array(x_train), np.array(y_te), np.array(x_test) 
 
 # -----------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------
@@ -461,7 +495,7 @@ def compute_hessian(y, tx, w, lam):
     D = z * (1-z)
     XD = tx * D.reshape(-1,1)
     hess = tx.T.dot(XD) + lam*np.eye((tx.shape[1]))
-    return hess
+    return hess/len(y)
 
 
 def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, tol=1e-8, patience = 1, writing = True, threshold = 0.5):

@@ -72,6 +72,20 @@ def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_fil
         data_process_tr[inds] = np.take(column_means, inds[1])
         data_process_ts[inds_t] = np.take(column_means_t, inds_t[1])
         
+    if replace == 'median':
+        # Getting Rid of NaN and Replacing with mean
+        # Create list with average values of columns, excluding NaN values
+        column_med = np.nanmedian(data_process_tr, axis=0)
+        column_med_t = np.nanmedian(data_process_ts, axis=0)
+
+        # Variable containing locations of NaN in data frame
+        inds = np.where(np.isnan(data_process_tr)) 
+        inds_t = np.where(np.isnan(data_process_ts)) 
+
+        # Reassign locations of NaN to the column means
+        data_process_tr[inds] = np.take(column_med, inds[1])
+        data_process_ts[inds_t] = np.take(column_med_t, inds_t[1])
+        
     if replace == 'zero':
         
 
@@ -105,8 +119,8 @@ def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_fil
             col[col >= thresh_sup] = column_means[i]
             col[col <= thresh_inf] = column_means[i]
             
-            col_t[col_t >= thresh_ts] = column_means[i]
-            col_t[col_t <= thresh_ti] = column_means[i]
+            col_t[col_t >= thresh_ts] = column_means_t[i]
+            col_t[col_t <= thresh_ti] = column_means_t[i]
 
             data_tr[:,i] = col
             
