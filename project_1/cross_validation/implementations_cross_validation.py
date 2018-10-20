@@ -1,6 +1,5 @@
 import numpy as np
 from helpers import *
-
 def prepare_standardplot(title, xlabel):
     fig, (ax1, ax2) = plt.subplots(1, 2)
     fig.suptitle(title)
@@ -77,6 +76,38 @@ def compute_gradient(y, tx, w, lam=0.1, method = "MSE"):
         grad = (tx.T.dot(z0) + lam * w)/len(y)
     return grad
 
+# -----------------------------------------------------------------------------
+
+def build_model_data(data, labels):
+    """Form (y,tX) to get regression data in matrix form."""
+    num_samples = len(labels)
+    tx = np.c_[np.ones(num_samples), data]
+    return labels, tx
+
+# -----------------------------------------------------------------------------
+
+
+def build_poly(x, degree):
+    """Polynomial basis functions for input data x, for j=0 up to j=degree."""
+    poly = x
+    for deg in range(2, degree+1):
+        poly = np.c_[poly, np.power(x, deg)]
+    return poly
+
+# -----------------------------------------------------------------------------
+
+def build_k_indices(y, k_fold, seed):
+    """build k indices for k-fold."""
+    num_row = y.shape[0]
+    interval = int(num_row / k_fold)
+    np.random.seed(seed)
+    indices = np.random.permutation(num_row)
+    k_indices = [indices[k * interval: (k + 1) * interval] for k in range(k_fold)]
+    return np.array(k_indices)
+
+# -----------------------------------------------------------------------------------
+
+
 # -----------------------------------------------------------------------------------
 
 def compute_hessian(y, tx, w, lam):
@@ -87,6 +118,32 @@ def compute_hessian(y, tx, w, lam):
     hess = tx.T.dot(XD) + lam*np.eye((tx.shape[1]))
     return hess
 
+# -----------------------------------------------------------------------------------
+
+
+
+def cross_val(y, x, k, lambda_, degree):
+    """get subsets for cross validation"""
+    
+    k_indices = build_k_indices(y, k, 0)
+
+    for i in np.arange(k):
+        te_indice = k_indices[i]
+        tr_indice = k_indices[~(np.arange(k_indices.shape[0]) == i)]
+        tr_indice = tr_indice.reshape(-1)
+        y_te = y[te_indice]
+        y_tr = y[tr_indice]
+        x_te = x[te_indice]
+        x_tr = x[tr_indice]
+        
+        # standardize the sets
+        
+        x_train, mean, variance = standardize(x_tr)
+        x_test = standardize_test(x_te, mean, variance)
+    
+        yield np.array(y_tr), np.array(x_train), np.array(y_te), np.array(x_test) #this is a generator! call next(object) for next set
+
+        
 # -----------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------
@@ -173,42 +230,79 @@ def least_squares_GD(y, tx, initial_w, tol = 1e-5, max_iters = 10000, gamma = 0.
 
 # -----------------------------------------------------------------------------------
 
-def least_squares_SGD(y, tx, initial_w, batch_size = 1000, tol = 1e-4,patience = 1, max_iters = 1000, gamma = 0.05, write = False):
+def least_squares_SGD(y, tx, initial_w, batch_size = 1000, tol = 1e-4,patience = 1, max_iters = 1000, gamma = 0.05, k=4, write = False):
     """Stochastic gradient descent algorithm."""
-
-    ws = [initial_w]
+    # test_loss = []
+    # training_loss = []
     w = initial_w
-    losses = [compute_loss(y, tx, w)]
-    diff = losses[0]
+    # losses = [compute_loss(y, tx, w)]
+    # diff = losses[0]
     n_iter=0
     nb_ES = 0
     
-    
-    while (n_iter <= max_iters) and (nb_ES < patience): 
-        for mini_y, mini_tx in batch_iter(y, tx, batch_size):
-            # compute gradient
-            gd = compute_gradient(mini_y, mini_tx, w)
-            
-            # compute next w
-            w = w - gamma*gd
-            
-            # compute loss
-            loss = compute_loss(y, tx, w)
-            
-            diff = abs(loss-losses[-1])
-            
-            # store w and loss
-            ws.append(w)
-            losses.append(loss)
-            n_iter += 1
-            if (diff < tol):
-                nb_ES = nb_ES + 1
-            
-        if write and (n_iter % 500 == 0):
-            print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
-                  bi=n_iter, ti=max_iters - 1, l=losses[-1], w0=w[0], w1=w[1]))
-    return losses, ws
+    if k == 0:
+        
+        while n_iter <= max_iters: 
+            for mini_y, mini_tx in batch_iter(y, tx, batch_size):
+                # compute gradient
+                gd = compute_gradient(mini_y, mini_tx, w)
 
+                # compute next w
+                w = w - gamma*gd
+
+                # compute loss
+                # loss = compute_loss(y, tx, w)
+
+                # diff = abs(loss-losses[-1])
+
+                # store w and loss
+                # ws.append(w)
+                # losses.append(loss)
+                n_iter += 1
+                #if (diff < tol):
+                #    nb_ES = nb_ES + 1
+
+            if write and (n_iter % 500 == 0):
+                print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
+                      bi=n_iter, ti=max_iters - 1, l=losses[-1], w0=w[0], w1=w[1]))
+        return w
+    
+    else:
+
+        gen = cross_val(y, tx, k, 0.01, 2) # initiate generator object
+        w_final = []
+        accuracies = []
+        for i in np.arange(k):
+            y_tr, x_tr, y_te, x_te = next(gen)
+
+            # Define parameters to store w and loss
+            # ws = [initial_w]
+            w = initial_w
+            # my_losses = [compute_loss(y_tr, x_tr, w)]
+            # test_mylosses = []
+            # loss = my_losses[0]
+            n_iter=0
+            while n_iter < max_iters:
+                for mini_y, mini_tx in batch_iter(y_tr, x_tr, batch_size):
+                    gd = compute_gradient(mini_y, mini_tx, w)
+                    w = w - gamma*gd
+                    # loss = compute_loss(y, tx, w)
+                    # diff = abs(loss-losses[-1])
+                    # losses.append(loss)
+                    n_iter += 1
+                    #if (diff < tol):
+                    #    nb_ES = nb_ES + 1
+                        
+                if write and (n_iter % 500 == 0):
+                    print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
+                        bi=n_iter, ti=max_iters - 1, l=losses[-1], w0=w[0], w1=w[1]))
+                    
+            # Append list of test accuracies
+            w_final.append(w)
+            test_pred_lab = predict_labels(w, x_te)
+            accuracies.append(pred_accuracy(test_pred_lab, y_te))
+       
+        return w_final, accuracies
 # -----------------------------------------------------------------------------------
 
 def least_squares(y, tx, k=4):
@@ -271,14 +365,31 @@ def build_poly(x, degree):
 # -----------------------------------------------------------------------------------
 
 
-def ridge_regression(y, tx, lambda_):
+def ridge_regression(y, tx, lambda_, k=4):
     """Calculates ridge regression."""
     
-    xTx = tx.T.dot(tx)
-    X = xTx + (2 * len(y) * lambda_ * np.identity(len(xTx)))
-    Y = tx.T.dot(y)
-    return np.linalg.solve(X, Y)
-
+    if k==0:
+        
+        xTx = tx.T.dot(tx)
+        X = xTx + (2 * len(y) * lambda_ * np.identity(len(xTx)))
+        Y = tx.T.dot(y)
+        return np.linalg.solve(X, Y)
+    if k==4:
+        w_final = []
+        accuracies = []
+        gen = cross_val(y, tx, k, 0.01, 2) # initiate generator object
+        for i in np.arange(k):
+            y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
+            xTx = x_tr.T.dot(x_tr)
+            X = xTx + (2 * len(y_tr) * lambda_ * np.identity(len(xTx)))
+            Y = x_tr.T.dot(y_tr)
+            w = np.linalg.solve(X,Y)
+            
+            # Append test accuracies
+            w_final.append(w)
+            test_pred_lab = predict_labels(w, x_te)
+            accuracies.append(pred_accuracy(test_pred_lab, y_te))
+        return w_final, accuracies
 # -----------------------------------------------------------------------------------
 
 def sigmoid(z):
@@ -342,50 +453,73 @@ def logistic_regression(y, tx, initial_w, max_iters = 10000, gamma = 0.0005, met
 
 # -----------------------------------------------------------------------------------
 
-def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, tol=1e-8, writing = True, threshold = 0.5):
+def logistic_hessian(y, tx, initial_w, gamma=0.05, k=4, lam=0.0, max_iters = 100, tol=1e-8, writing = False, threshold = 0.5):
     
     # Define parameters to store w
     w = initial_w
     
     # Compute losses
     losses = [compute_loss(y, tx, w, method="logistic")]
-    losses_t = [compute_loss(y_t, tx_t, w, method="logistic")]
+    # losses_t = [compute_loss(y_t, tx_t, w, method="logistic")]
     
     pred = predict_labels_logistic(w, tx, threshold)
-    acc = [pred_accuracy(pred, y)]
+    # acc = [pred_accuracy(pred, y)]
     
-    pred_t = predict_labels_logistic(w, tx_t, threshold)
-    acc_t = [pred_accuracy(pred_t, y_t)]
+    # pred_t = predict_labels_logistic(w, tx_t, threshold)
+    # acc_t = [pred_accuracy(pred_t, y_t)]
     
     diff = 10
-    n_iter=0
     
-    while (n_iter < max_iters) and (diff > tol):
-        # compute gradient
-        gd = compute_gradient(y, tx, w, method="logistic")
-        hess = compute_hessian(y, tx, w, lam)
-        
-        # compute next w
-        w = w - gamma*np.linalg.solve(hess,gd)
-        
-        # compute loss and diff
-        losses.append(compute_loss(y, tx, w, method="logistic"))
-        pred = predict_labels_logistic(w, tx, threshold)
-        acc.append(pred_accuracy(pred, y))
-        
-        losses_t.append(compute_loss(y_t, tx_t, w, method="logistic"))
-        pred_t = predict_labels_logistic(w, tx_t, threshold)
-        acc_t.append(pred_accuracy(pred_t, y_t))
-        
-        diff = abs(losses[-2]-losses[-1])
-        
-        n_iter += 1
-        
-        if writing:
-            if n_iter % 25 == 0:
-                print("It's working")
+    if k == 0:
+        n_iter=0
+        while (n_iter < max_iters) and (diff > tol):
+            # compute gradient
+            gd = compute_gradient(y, tx, w, method="logistic")
+            hess = compute_hessian(y, tx, w, lam)
+
+            # compute next w
+            w = w - gamma*np.linalg.solve(hess,gd)
+
+            # compute loss and diff
+            losses.append(compute_loss(y, tx, w, method="logistic"))
+            # pred = predict_labels_logistic(w, tx, threshold)
+            # acc.append(pred_accuracy(pred, y))
+
+            # losses_t.append(compute_loss(y_t, tx_t, w, method="logistic"))
+            # pred_t = predict_labels_logistic(w, tx_t, threshold)
+            # acc_t.append(pred_accuracy(pred_t, y_t))
+
+            diff = abs(losses[-2]-losses[-1])
+            n_iter += 1
+
+            if writing:
+                if n_iter % 25 == 0:
+                    print("It's working")
+        return w
+    
+    else:
+        w_final = []
+        accuracies = []
+        gen = cross_val(y, tx, k, 0.01, 2) # initiate generator object
+        for i in np.arange(k):
+            y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
+            n_iter = 0
+            while (n_iter < max_iters) and (diff > tol):
+                gd = compute_gradient(y_tr, x_tr, w, method='logistic')
+                hess = compute_hessian(y_tr, x_tr, w, lam)
+                
+                w -= gamma * np.linalg.solve(hess, gd)
+                losses.append(compute_loss(y_tr, x_tr, w, method='logistic'))
+                # losses_t.append(compute_loss(y_te, x_te, w, method='logistic'))
+                
+                diff = abs(losses[-2] - losses[-1])
+                n_iter += 1
+            w_final.append(w)
+            test_pred_lab = predict_labels_logistic(w, x_te, threshold)
+            accuracies.append(pred_accuracy(test_pred_lab, y_te))
             
-    return losses, losses_t, acc, acc_t, w
+        return w_final, accuracies
+            
        
 # --------------------------------------------------------------------------------
 
