@@ -57,12 +57,51 @@ def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_fil
     # Print new dimensions of the dataframe after filtering
 
     print(' After feature and sample filtering, there are {0} samples and {1} columns'.format(data_process_tr.shape[0],data_process_tr.shape[1]))
+   
+    
+    if remove_outlier:
+
+        data_tr = np.zeros(data_process_tr.shape)
+        data_ts = np.zeros(data_process_ts.shape)
+        column_means = np.nanmean(data_process_tr, axis=0)
+        column_means_t = np.nanmean(data_process_ts, axis=0)
+        column_std = np.nanstd(data_process_tr, axis=0)
+        column_std_t = np.nanstd(data_process_ts, axis=0)
+
+        for i in range(len(column_means)):
+            col = data_process_tr[:,i]
+            thresh_sup = column_means[i] + 3*column_std[i]
+            thresh_inf = column_means[i] - 3*column_std[i]
+
+            col_t = data_process_ts[:,i]
+            thresh_ts = column_means_t[i] + 3*column_std_t[i]
+            thresh_ti = column_means_t[i] - 3*column_std_t[i]
+            
+            mean_wo_outlier = np.mean(col[ np.array([(e <= thresh_sup and e >= thresh_inf) if ~np.isnan(e) else False for e in col], dtype=bool) ])
+            
+            col[ np.array([e >= thresh_sup if ~np.isnan(e) else False for e in col], dtype=bool) ] = mean_wo_outlier
+            col[ np.array([e <= thresh_inf if ~np.isnan(e) else False for e in col], dtype=bool) ] = mean_wo_outlier
+            
+            mean_wo_outlier_t = np.mean(col_t[ np.array([(e <= thresh_ts and e >= thresh_ti) if ~np.isnan(e) else False for e in col_t], dtype=bool) ])
+            
+            col_t[ np.array([e >= thresh_ts if ~np.isnan(e) else False for e in col_t], dtype=bool) ] = mean_wo_outlier_t
+            col_t[ np.array([e <= thresh_ti if ~np.isnan(e) else False for e in col_t], dtype=bool) ] = mean_wo_outlier_t
+
+            data_tr[:,i] = col
+
+            data_ts[:,i] = col_t
+
+        data_process_tr = data_tr.copy()
+        data_process_ts = data_ts.copy()
+        
+    column_means = np.nanmean(data_process_tr, axis=0)
+    column_means_t = np.nanmean(data_process_ts, axis=0)
+    column_std = np.nanstd(data_process_tr, axis=0)
+    column_std_t = np.nanstd(data_process_ts, axis=0)
     
     if replace == 'mean':
         # Getting Rid of NaN and Replacing with mean
         # Create list with average values of columns, excluding NaN values
-        column_means = np.nanmean(data_process_tr, axis=0)
-        column_means_t = np.nanmean(data_process_ts, axis=0)
 
         # Variable containing locations of NaN in data frame
         inds = np.where(np.isnan(data_process_tr)) 
@@ -95,37 +134,8 @@ def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_fil
         
         data_process_tr[inds] = 0
         data_process_ts[inds_t] = 0
-        
-    if remove_outlier:
+    
+    data_process_tr = (data_process_tr - column_means)/column_std
+    data_process_ts = (data_process_ts - column_means)/column_std
 
-        column_means = np.mean(data_process_tr, axis=0)
-        column_means_t = np.mean(data_process_ts, axis=0)
-
-        column_std = np.std(data_process_tr, axis=0)
-        column_std_t = np.std(data_process_ts, axis=0)
-        
-        data_tr = np.zeros(data_process_tr.shape)
-        data_ts = np.zeros(data_process_ts.shape)
-        
-        for i in range(len(column_means)):
-            col = data_process_tr[:,i]
-            thresh_sup = column_means[i] + 3*column_std[i]
-            thresh_inf = column_means[i] - 3*column_std[i]
-            
-            col_t = data_process_ts[:,i]
-            thresh_ts = column_means_t[i] + 3*column_std_t[i]
-            thresh_ti = column_means_t[i] - 3*column_std_t[i]
-            
-            col[col >= thresh_sup] = column_means[i]
-            col[col <= thresh_inf] = column_means[i]
-            
-            col_t[col_t >= thresh_ts] = column_means_t[i]
-            col_t[col_t <= thresh_ti] = column_means_t[i]
-
-            data_tr[:,i] = col
-            
-            data_ts[:,i] = col_t
-        
-        data_process_tr = data_tr.copy()
-        data_process_ts = data_ts.copy()
     return (data_process_tr, data_process_ts, lab)

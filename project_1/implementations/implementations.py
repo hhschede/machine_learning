@@ -68,6 +68,17 @@ def build_poly(x, degree):
 
 # -----------------------------------------------------------------------------
 
+
+def build_poly_rt(x, degree):
+    """Polynomial basis functions for input data x."""
+    
+    poly = np.power(abs(x), 1./2)
+    for deg in range(3, degree+1):
+        poly = np.c_[poly, np.power(x, 1./deg)]
+    return poly
+
+# -----------------------------------------------------------------------------
+
 def build_interact_terms(x):
     """Calculates interaction terms for each feature."""
     
@@ -78,6 +89,20 @@ def build_interact_terms(x):
 
 # -----------------------------------------------------------------------------
 
+# def build_three_way(x):
+#     """Calculates triple interaction terms for each feature."""
+    
+#     interact = []
+#     result = x
+#     for i in range(x.shape[1]):
+#         interact = (x[:,(i+1):].T*x[:,i]).T
+#         for j in range(interact.shape[1]):
+#             result = np.c_[result, (x[:,(i+j+1):].T*interact[:,j]).T]
+#         print(i)
+#     return result
+
+"""Takes too much time to compute, either we do it another way or we don't do it."""
+
 def build_three_way(x):
     """Calculates triple interaction terms for each feature."""
     
@@ -86,11 +111,8 @@ def build_three_way(x):
     for i in range(x.shape[1]):
         interact = (x[:,(i+1):].T*x[:,i]).T
         for j in range(interact.shape[1]):
-            result = np.c_[result, (x[:,(i+j+1):].T*interact[:,j]).T]
-        print(i)
+            result = np.c_[result, interact[:,j]*x[:,(i+j+1)]]
     return result
-
-"""Takes too much time to compute, either we do it another way or we don't do it."""
 
 # -----------------------------------------------------------------------------
 
@@ -352,7 +374,7 @@ def sigmoid(z):
 
 # -----------------------------------------------------------------------------------
 
-def predict_labels_logistic(weights, data, threshold = 0.7):
+def predict_labels_logistic(weights, data, threshold = 0.5):
     """Generates class predictions given weights, and a test data matrix"""
     y_pred = sigmoid(data.dot(weights))
     y_pred[np.where(y_pred < threshold)] = -1
