@@ -520,10 +520,11 @@ def compute_hessian(y, tx, w, lam):
     return hess/len(y)
 
 
-def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
+def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
     
     # Define parameters to store w
     w = initial_w
+    # ws = [w]
     
     # Compute losses
     losses_tr = [compute_loss(y, tx, w, method="logistic")]
@@ -538,6 +539,7 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
     diff = 10
     n_iter=0
     nb_ES = 0
+    velocity = 0
     
     while (n_iter < max_iters) and (patience > nb_ES):
         # compute gradient
@@ -545,7 +547,8 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
         hess = compute_hessian(y, tx, w, lam)
         
         # compute next w
-        w = w - gamma*np.linalg.solve(hess,gd)
+        velocity = momentum*velocity - gamma*np.linalg.solve(hess,gd)
+        w = w + velocity
         
         # compute loss and diff
         losses_tr.append(compute_loss(y, tx, w, method="logistic"))
@@ -570,5 +573,39 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
             nb_ES = 0
             
     return losses_tr, losses_ts, acc_tr, acc_ts, w
+
+
+def Grid_Search_logistic(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0, tol=1e-5, patience = 5):
+    # Define parameters to store w
+    w = initial_w
+    
+    pred_t = predict_labels_logistic(w, tx_t, 0.5)
+    acc_ts = [pred_accuracy(pred_t, y_t)]
+    
+    velocity = 0
+    
+    diff = 10
+    n_iter=0
+    nb_ES = 0
+    
+    while (n_iter < max_iters) and (patience > nb_ES):
+        # compute gradient
+        gd = compute_gradient(y, tx, w, method="logistic")
+        hess = compute_hessian(y, tx, w, lam)
+        
+        # compute next w
+        velocity = momentum*velocity - gamma*np.linalg.solve(hess,gd)
+        w = w + velocity
+        
+        pred_t = predict_labels_logistic(w, tx_t, 0.5)
+        acc_ts.append(pred_accuracy(pred_t, y_t))
+
+        n_iter = n_iter + 1
+        if (abs(acc_ts[-1]-acc_ts[-2]) < tol):
+                nb_ES = nb_ES + 1
+        else:
+            nb_ES = 0
+    
+    return max(acc_ts)
 
 
