@@ -14,7 +14,7 @@ def PCA(data, threshold = 1):
 
     sumEigenVal = [0]
     k = 0
-    while(sumEigenVal[-1] < threshold):
+    while((sumEigenVal[-1] < threshold) and (k < data.shape[1])):
         sumEigenVal.append(sumEigenVal[-1] + eigenVal[k])
         k = k+1
 

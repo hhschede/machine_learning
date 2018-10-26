@@ -1,5 +1,7 @@
 import numpy as np
 from helpers import *
+import warnings
+warnings.filterwarnings("ignore")
 
 # -----------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------
@@ -89,29 +91,26 @@ def build_interact_terms(x):
 
 # -----------------------------------------------------------------------------
 
-# def build_three_way(x):
-#     """Calculates triple interaction terms for each feature."""
-    
-#     interact = []
-#     result = x
-#     for i in range(x.shape[1]):
-#         interact = (x[:,(i+1):].T*x[:,i]).T
-#         for j in range(interact.shape[1]):
-#             result = np.c_[result, (x[:,(i+j+1):].T*interact[:,j]).T]
-#         print(i)
-#     return result
-
-"""Takes too much time to compute, either we do it another way or we don't do it."""
-
-def build_three_way(x):
+def build_three_way(x, long = False):
     """Calculates triple interaction terms for each feature."""
     
-    interact = []
-    result = x
-    for i in range(x.shape[1]):
-        interact = (x[:,(i+1):].T*x[:,i]).T
-        for j in range(interact.shape[1]):
-            result = np.c_[result, interact[:,j]*x[:,(i+j+1)]]
+    if long:
+        interact = []
+        result = x
+        for i in range(x.shape[1]):
+            interact = (x[:,(i+1):].T*x[:,i]).T
+            for j in range(interact.shape[1]):
+                result = np.c_[result, (x[:,(i+j+1):].T*interact[:,j]).T]
+        return result
+
+    else:
+        interact = []
+        result = x
+        for i in range(x.shape[1]):
+            interact = (x[:,(i+1):].T*x[:,i]).T
+            for j in range(interact.shape[1]):
+                result = np.c_[result, interact[:,j]*x[:,(i+j+1)]]
+                
     return result
 
 # -----------------------------------------------------------------------------
@@ -370,6 +369,7 @@ def sigmoid(z):
     sig = np.zeros(z.shape)
     sig[idx] = 1. / (1 + np.exp(-z[idx]))
     sig[~idx] = np.exp(z[~idx]) / (1. + np.exp(z[~idx]))
+        
     return sig
 
 # -----------------------------------------------------------------------------------
@@ -520,7 +520,7 @@ def compute_hessian(y, tx, w, lam):
     return hess/len(y)
 
 
-def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
+def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0.5, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
     
     # Define parameters to store w
     w = initial_w
@@ -543,11 +543,11 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
     
     while (n_iter < max_iters) and (patience > nb_ES):
         # compute gradient
-        gd = compute_gradient(y, tx, w, method="logistic")
+        gd = compute_gradient(y, tx, w, lam, method="logistic")
         hess = compute_hessian(y, tx, w, lam)
         
         # compute next w
-        velocity = momentum*velocity - gamma*np.linalg.solve(hess,gd)
+        velocity = momentum*velocity - gamma*np.linalg.lstsq(hess,gd)[0]
         w = w + velocity
         
         # compute loss and diff

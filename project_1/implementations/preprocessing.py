@@ -1,6 +1,8 @@
 import numpy as np
+from implementations import *
+from pca import *
 
-def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_filtering = True, remove_outlier = True, replace = 'zero'):
+def process_data(data, data_t, feature_filtering = True, remove_outlier = True, replace = 'mean'):
     """The process_data function prepares the train and test data by performing
     some data cleansing techniques. Missing values which are set as -999
     are replaced by NaN, then the means of each features are calculated
@@ -12,7 +14,6 @@ def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_fil
     
     data_process_tr = np.array(data)
     data_process_ts = np.array(data_t)
-    lab = np.array(labels)
     
     # Setting missing values (-999) as NaN
     data_process_tr[data_process_tr == -999] = np.nan
@@ -31,33 +32,14 @@ def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_fil
         idx_del = []
         
         for idx, entry in enumerate(nan_count):
-            if (entry >= 0.6):
+            if (entry >= 1):
                 idx_del.append(idx)
         data_process_tr = np.delete(data_process_tr, idx_del,1).copy()
         data_process_ts = np.delete(data_process_ts, idx_del,1).copy()
-        
-    if sample_filtering:
-        data_set_filtered_2 = [] # Dataset filtered for features and samples
-        
-        # Arrays that gets rid of entries that are no longer corresponding in the dataframe
-        sample_del = []
-        
-        # Retrieve percentage for each sample
-        nan_count = np.count_nonzero(np.isnan(data_process_tr),axis=1)/data_process_tr.shape[1]
-        
-        # Gets rid of samples with NaN values higher than 15%
-        for idx, entry in enumerate(nan_count):  
-            if entry >= 0.15:
-                sample_del.append(idx)
-                
-        data_process_tr = np.delete(data_process_tr,sample_del,0).copy()
-        lab = np.delete(lab,sample_del,0).copy()
-
 
     # Print new dimensions of the dataframe after filtering
 
     print(' After feature and sample filtering, there are {0} samples and {1} columns'.format(data_process_tr.shape[0],data_process_tr.shape[1]))
-   
     
     if remove_outlier:
 
@@ -135,7 +117,47 @@ def process_data(data, data_t, labels, ids ,sample_filtering = True, feature_fil
         data_process_tr[inds] = 0
         data_process_ts[inds_t] = 0
     
+    column_std[column_std == 0] = 1
     data_process_tr = (data_process_tr - column_means)/column_std
     data_process_ts = (data_process_ts - column_means)/column_std
 
-    return (data_process_tr, data_process_ts, lab)
+    return (data_process_tr, data_process_ts)
+
+def transform_data(data, data_t, y, y_t, poly = 4, interact = True, log = True, three = True, long = False, pca_t = 1):
+
+    # Build polynomial of degree poly
+    data_tr = build_poly(data, poly)
+    data_ts = build_poly(data_t, poly)
+    
+    if interact:
+        # Build interaction terms
+        data_tr_int = build_interact_terms(data)
+        data_ts_int = build_interact_terms(data_t)
+        data_tr = np.c_[data_tr, data_tr_int]
+        data_ts = np.c_[data_ts, data_ts_int]
+
+    if log:
+        # Build log 
+        data_tr_log = np.log(abs(data)+1)
+        data_ts_log = np.log(abs(data_t)+1)
+        data_tr = np.c_[data_tr, data_tr_log]
+        data_ts = np.c_[data_ts, data_ts_log]
+        
+    if three:
+        data_tr_3 = build_three_way(data, long)
+        data_ts_3 = build_three_way(data_t, long)
+        data_tr = np.delete(data_tr, np.s_[0:30],axis=1)
+        data_ts = np.delete(data_ts, np.s_[0:30],axis=1)
+        data_tr = np.c_[data_tr, data_tr_3]
+        data_ts = np.c_[data_ts, data_ts_3]
+
+    # Perform PCA
+    eigVal, eigVec, sumEigVal = PCA(data_tr, threshold = pca_t)
+    data = data_tr.dot(eigVec)
+    data_t = data_ts.dot(eigVec)
+    print("we have reduce the number of feature with PCA to {0}".format(eigVec.shape[1]))
+    
+    y, tx = build_model_data(data, y)
+    y_t, tx_t = build_model_data(data_t, y_t)
+    
+    return y, tx, y_t, tx_t
