@@ -2,7 +2,7 @@ import numpy as np
 from implementations import *
 from pca import *
 
-def process_data(data, data_t, feature_filtering = True, remove_outlier = True, replace = 'mean'):
+def process_data(data, data_t, feature_filtering = True, remove_outlier = True, replace = 'mean', standardize=True):
     """The process_data function prepares the train and test data by performing
     some data cleansing techniques. Missing values which are set as -999
     are replaced by NaN, then the means of each features are calculated
@@ -120,10 +120,11 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
         data_process_tr[inds] = 0
         data_process_ts[inds_t] = 0
     
-    print("Standerizing the data")
-    column_std[column_std == 0] = 1
-    data_process_tr = (data_process_tr - column_means)/column_std
-    data_process_ts = (data_process_ts - column_means)/column_std
+    if standardize:
+        print("Standerizing the data")
+        column_std[column_std == 0] = 1
+        data_process_tr = (data_process_tr - column_means)/column_std
+        data_process_ts = (data_process_ts - column_means)/column_std
 
     return (data_process_tr, data_process_ts)
 
