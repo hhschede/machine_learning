@@ -123,7 +123,7 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
 
     return (data_process_tr, data_process_ts)
 
-def transform_data(data, data_t, y, y_t, poly = 4, interact = True, log = True, three = True, long = False, pca_t = 1):
+def transform_data(data, data_t, y, y_t, poly = 4, interact = True, log = True, three = True, pca_t = 1):
 
     # Build polynomial of degree poly
     data_tr = build_poly(data, poly)
@@ -144,12 +144,13 @@ def transform_data(data, data_t, y, y_t, poly = 4, interact = True, log = True, 
         data_ts = np.c_[data_ts, data_ts_log]
         
     if three:
-        data_tr_3 = build_three_way(data, long)
-        data_ts_3 = build_three_way(data_t, long)
+        data_tr_3 = build_three_way(data)
+        data_ts_3 = build_three_way(data_t)
         data_tr = np.delete(data_tr, np.s_[0:30],axis=1)
         data_ts = np.delete(data_ts, np.s_[0:30],axis=1)
         data_tr = np.c_[data_tr, data_tr_3]
         data_ts = np.c_[data_ts, data_ts_3]
+        
 
     # Perform PCA
     eigVal, eigVec, sumEigVal = PCA(data_tr, threshold = pca_t)

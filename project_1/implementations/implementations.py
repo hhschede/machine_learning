@@ -91,25 +91,15 @@ def build_interact_terms(x):
 
 # -----------------------------------------------------------------------------
 
-def build_three_way(x, long = False):
+def build_three_way(x):
     """Calculates triple interaction terms for each feature."""
-    
-    if long:
-        interact = []
-        result = x
-        for i in range(x.shape[1]):
-            interact = (x[:,(i+1):].T*x[:,i]).T
-            for j in range(interact.shape[1]):
-                result = np.c_[result, (x[:,(i+j+1):].T*interact[:,j]).T]
-        return result
 
-    else:
-        interact = []
-        result = x
-        for i in range(x.shape[1]):
-            interact = (x[:,(i+1):].T*x[:,i]).T
-            for j in range(interact.shape[1]):
-                result = np.c_[result, interact[:,j]*x[:,(i+j+1)]]
+    interact = []
+    result = x
+    for i in range(x.shape[1]):
+        interact = (x[:,(i+1):].T*x[:,i]).T
+        for j in range(interact.shape[1]):
+            result = np.c_[result, interact[:,j]*x[:,(i+j+1)]]
                 
     return result
 
@@ -198,6 +188,10 @@ def least_squares_GD(y, tx, y_t, tx_t, initial_w, tol = 1e-5, max_iters = 10000,
             
             acc_tr.append(pred_accuracy(predict_labels(w, tx), y))
             acc_ts.append(pred_accuracy(predict_labels(w, tx_t), y_t))
+            
+            if write and (i % 100 == 0):
+                print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
+                      bi=i, ti=max_iters - 1, l=losses_tr[-1], w0=w[0], w1=w[1]))
             
             
         return losses_tr, losses_ts, acc_tr, acc_ts, ws
