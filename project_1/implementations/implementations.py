@@ -306,7 +306,7 @@ def least_squares(y, tx, k=0):
     if k ==0:
         X = tx.T.dot(tx)
         Y = tx.T.dot(y)
-        w = np.linalg.solve(X,Y)
+        w = np.linalg.lstsq(X,Y)[0]
         return w
 
     # If k > 0, determine if this is a good way to select the model (retrieve variance and bias)
@@ -319,7 +319,7 @@ def least_squares(y, tx, k=0):
             X = x_tr.T.dot(x_tr)
             Y = x_tr.T.dot(y_tr)
             try:
-                w = np.linalg.solve(X,Y)
+                w = np.linalg.lstsq(X,Y)[0]
             except np.linalg.LinAlgError as err: # Due to a singular matrix, need to add some noise for it to work
                 X += 0.000001
                 Y += 0.000001
@@ -358,7 +358,7 @@ def ridge_regression(y, tx, lambda_):
 # USEFUL FUNCTIONS
 
 def sigmoid(z):
-    
+    """ Sigmoid function for logistic regression """
     idx = z > 0
     sig = np.zeros(z.shape)
     sig[idx] = 1. / (1 + np.exp(-z[idx]))
@@ -380,7 +380,15 @@ def predict_labels_logistic(weights, data, threshold = 0.5):
 # -----------------------------------------------------------------------------------
 
 def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 0.0005, method = "gd",batch_size = 1000, writing = False):
+    """ Simple logistic regression model function 
+    Takes parameters for optimazation:
+        max_iters = number of iterations
+        gamma = learning rate
+        method = gradient descent (gd) or stochastic gradient descent (sgd)
+        batch_size = size of batch for sgd
+        writing = boolean if true write prograssion of learning
     
+    """
     w = initial_w
     
     losses_tr = [compute_loss(y, tx, w, lam = 0, method = 'logistic')]
@@ -395,7 +403,7 @@ def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 
     
     if method == "gd":
         for i in range(max_iters):
-            grad = compute_gradient(y, tx, initial_w, lam=0, method = "logistic")
+            grad = compute_gradient(y, tx, initial_w, lambda_=0, method = "logistic")
             
             w -= gamma * grad
 
@@ -416,7 +424,7 @@ def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 
     if method == "sgd":
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
-                grad = compute_gradient(y, tx, initial_w,lam=0, method = "logistic")
+                grad = compute_gradient(y, tx, initial_w,lambda_=0, method = "logistic")
 
 
                 w -= gamma * grad
@@ -443,6 +451,17 @@ def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 
 
 
 def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters = 10000, gamma = 0.0005, method = "gd", batch_size = 1000, writing = False):
+       
+    """ Regularized logistic regression model function 
+    Takes parameters for optimazation:
+        lamda = regularization parameter
+        max_iters = number of iterations
+        gamma = learning rate
+        method = gradient descent (gd) or stochastic gradient descent (sgd)
+        batch_size = size of batch for sgd
+        writing = boolean if true write prograssion of learning
+    
+    """
     
     w = initial_w
     
@@ -458,7 +477,7 @@ def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters 
     
     if method == "gd":
         for i in range(max_iters):
-            grad = compute_gradient(y, tx, initial_w, lam=lamb, method = "logistic")
+            grad = compute_gradient(y, tx, initial_w, lambda_=lamb, method = "logistic")
             
             w -= gamma * grad
 
@@ -479,7 +498,7 @@ def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters 
     if method == "sgd":
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
-                grad = compute_gradient(y, tx, initial_w,lam=lamb, method = "logistic")
+                grad = compute_gradient(y, tx, initial_w,lambda_=lamb, method = "logistic")
 
 
                 w -= gamma * grad
@@ -507,6 +526,7 @@ def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters 
 
 def compute_hessian(y, tx, w, lam):
     """return the hessian of the loss function."""
+    
     z = sigmoid(tx.dot(w))
     D = z * (1-z)
     XD = tx * D.reshape(-1,1)
@@ -515,7 +535,22 @@ def compute_hessian(y, tx, w, lam):
 
 
 def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0.5, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
+    """ Regularized/simple logistic regression computed with Netwon's method
     
+    Takes parameters for optimazation:
+        lam = lambda (regularization parameter)
+        max_iters = number of iterations
+        gamma = learning rate
+        method = gradient descent (gd) or stochastic gradient descent (sgd)
+        batch_size = size of batch for sgd
+        writing = boolean if true write prograssion of learning
+        
+        tol and patience for early stopping. 
+        The learning stop after the difference in loss is small than the tolerence (tol) for a number of times (patience)
+        
+        momentum = value for modifying the learning rate using momentum method
+    
+    """
     # Define parameters to store w
     w = initial_w
     # ws = [w]
@@ -570,6 +605,10 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
 
 
 def Grid_Search_logistic(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0, tol=1e-5, patience = 5):
+    """ 
+    Simpified version of logistic regressiong for faster computing of grid search
+    
+    """
     # Define parameters to store w
     w = initial_w
     
