@@ -670,9 +670,6 @@ def compute_hessian(y, tx, w, lam):
     return hess/len(y)
 
 
-<<<<<<< HEAD
-def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
-=======
 def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0.5, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
     """ Regularized/simple logistic regression computed with Netwon's method
     
@@ -716,7 +713,7 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
         hess = compute_hessian(y, tx, w, lam)
         
         # compute next w
-        velocity = momentum*velocity - gamma*np.linalg.lstsq(hess,gd)[0]
+        velocity = momentum*velocity - gamma*np.linalg.solve(hess,gd)
         w = w + velocity
         
         # compute loss and diff
