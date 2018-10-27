@@ -64,10 +64,10 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
             col[ np.array([e >= thresh_sup if ~np.isnan(e) else False for e in col], dtype=bool) ] = mean_wo_outlier
             col[ np.array([e <= thresh_inf if ~np.isnan(e) else False for e in col], dtype=bool) ] = mean_wo_outlier
             
-            mean_wo_outlier_t = np.mean(col_t[ np.array([(e <= thresh_ts and e >= thresh_ti) if ~np.isnan(e) else False for e in col_t], dtype=bool) ])
+            mean_wo_outlier_t = np.mean(col_t[ np.array([(e <= thresh_sup and e >= thresh_inf) if ~np.isnan(e) else False for e in col_t], dtype=bool) ])
             
-            col_t[ np.array([e >= thresh_ts if ~np.isnan(e) else False for e in col_t], dtype=bool) ] = mean_wo_outlier_t
-            col_t[ np.array([e <= thresh_ti if ~np.isnan(e) else False for e in col_t], dtype=bool) ] = mean_wo_outlier_t
+            col_t[ np.array([e >= thresh_sup if ~np.isnan(e) else False for e in col_t], dtype=bool) ] = mean_wo_outlier
+            col_t[ np.array([e <= thresh_inf if ~np.isnan(e) else False for e in col_t], dtype=bool) ] = mean_wo_outlier
 
             data_tr[:,i] = col
 
@@ -77,9 +77,9 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
         data_process_ts = data_ts.copy()
         
     column_means = np.nanmean(data_process_tr, axis=0)
-    column_means_t = np.nanmean(data_process_ts, axis=0)
+    column_means_t = np.nanmean(data_process_tr, axis=0)
     column_std = np.nanstd(data_process_tr, axis=0)
-    column_std_t = np.nanstd(data_process_ts, axis=0)
+    column_std_t = np.nanstd(data_process_tr, axis=0)
     
     if replace == 'mean':
         # Getting Rid of NaN and Replacing with mean

@@ -514,7 +514,7 @@ def compute_hessian(y, tx, w, lam):
     return hess/len(y)
 
 
-def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0.5, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
+def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
     
     # Define parameters to store w
     w = initial_w
@@ -584,7 +584,7 @@ def Grid_Search_logistic(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_i
     
     while (n_iter < max_iters) and (patience > nb_ES):
         # compute gradient
-        gd = compute_gradient(y, tx, w, method="logistic")
+        gd = compute_gradient(y, tx, w, lam, method="logistic")
         hess = compute_hessian(y, tx, w, lam)
         
         # compute next w
