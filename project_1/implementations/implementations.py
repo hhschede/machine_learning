@@ -1,5 +1,6 @@
 import numpy as np
 from helpers import *
+from pca import *
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -117,7 +118,7 @@ def build_k_indices(y, k_fold, seed):
 
 # -----------------------------------------------------------------------------------
 
-def cross_val(y, x, k, lambda_, degree):
+def cross_val(y, x, k):
     """get subsets for cross validation"""
     
     k_indices = build_k_indices(y, k, 0)
@@ -131,12 +132,147 @@ def cross_val(y, x, k, lambda_, degree):
         x_te = x[te_indice]
         x_tr = x[tr_indice]
         
-        # Standardize the sets
+        # standardize the sets
         
+
+
         x_train, mean, variance = standardize(x_tr)
         x_test = standardize_test(x_te, mean, variance)
-        # This is a generator! Call next(object) for next set
-        yield np.array(y_tr), np.array(x_train), np.array(y_te), np.array(x_test) 
+        
+        eigVal, eigVec, sumEigVal = PCA(x_train, threshold = 0.90)
+        x_train = x_train.dot(eigVec)
+        x_test = x_test.dot(eigVec)
+        
+        y_tr, x_train = build_model_data(x_train, y_tr)
+        y_te, x_test = build_model_data(x_test, y_te)
+        
+        yield np.array(y_tr), np.array(x_train), np.array(y_te), np.array(x_test) #this is a generator! call next(object) for next set
+
+# -----------------------------------------------------------------------------------
+        
+def do_cross_val(methodtype, k, w, ytrain, xtrain, ytest, xtrainstd, xteststd, lambda_ = 0):
+    """do_cross_val function returns a list of cross validation accuracies and a test set accuracy
+    
+    method type: string, possible inputs 'logistic_regression', 
+    k: int of cross validation folds
+    w: np array of initial w, must be as long as the training sets
+    ytrain: vector of target values from training set
+    xtrain: data matrix samples in rows and features in columns
+    ytest: vector of target values from test set
+    xtrainstd: standardized datamatrix for training w
+    xteststd: standardized datamatrix using parameters calculated from xtrainstd
+    """
+    
+    # cross validation for logistic regression
+    if methodtype == 'logistic_regression':
+    
+        gen = cross_val(ytrain, xtrain, k) # initiate generator object
+        accuracies = []
+        for i in np.arange(k):
+            y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
+            w = np.random.rand(x_tr.shape[1])
+            losses, losses_t, acc, acc_t, w = logistic_hessian(y_tr, x_tr, y_te, x_te, w, 0.07, 500, 150, writing=False)
+            accuracies.append(acc_t[-1])
+    
+        # Perform algorithm on entire training set to retrieve w
+        losses, losses_t, acc, test_accuracy, w = logistic_hessian(ytrain, xtrainstd, ytest,
+                                                           xteststd, w, 0.07, 500, 150, writing=False)
+        # test_accuracies_log.append(test_accuracy[-1])
+    
+        return accuracies, test_accuracy[-1]
+
+    if methodtype == 'ridge_regression':
+
+        gen = cross_val(ytrain, xtrain, k)
+        accuracies = []
+        for i in np.arange(k):
+            y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
+            w = ridge_regression(y_tr, x_tr, lambda_)
+
+            # Append test accuracies            
+            test_pred_lab = predict_labels(w, x_te)
+            accuracies.append(pred_accuracy(test_pred_lab, y_te))
+
+        w = ridge_regression(ytrain, xtrainstd, lambda_)
+        test_pred_lab = predict_labels(w, xteststd)
+        test_accuracy = pred_accuracy(test_pred_lab, ytest)
+
+        return accuracies, test_accuracy
+# -----------------------------------------------------------------------------------
+    
+def create_dataset(rawdata, rawlabels, interact=False, degree=0, pcathresh=0.9, split=0.8):
+    
+    """Create splits of data from raw to use for model learning. Adds interact terms and degrees optional
+    performs pca to compress dataframe
+    
+    rawdata = np matrix as it is loaded from train_csv
+    rawlabels = values retrieved from train_csv that are binary
+    interact = boolean indicating to add interacting terms
+    degree = integer indicating how many degrees to add of original training features
+    pcathresh = float of percent of variance of data to represent
+    split = float of percent of training set to use for model training. 0.8 means 80% of data is used for training
+    """
+    
+    # Create train/test split
+
+    X_train, y_train, X_test, y_test = split_data(rawdata, rawlabels, ratio=split, seed=0)
+
+    # Add interaction terms and polynomial of degree 2 to cross val set (no bias term is added here
+    # since its done inside crossval function)
+    
+    if interact:
+        X_train_int = build_interact_terms(X_train)
+        X_test_int = build_interact_terms(X_test)
+        
+        if degree != 0:
+            X_train_poly = build_poly(X_train, degree)
+            X_test_poly = build_poly(X_test, degree)
+            X_train = np.c_[X_train_poly, X_train_int]
+            X_test = np.c_[X_test_poly, X_test_int]
+        
+        else:
+            X_train = X_train_int
+            X_test = X_test_int
+    
+    if (interact==False) and (degree != 0):
+        X_train = build_poly(X_train, degree)
+        X_test = build_poly(X_test, degree)
+        
+    # Create standardizations for the split
+    X_train_std, mean, variance = standardize(X_train)
+    X_test_std = standardize_test(X_test, mean, variance)
+
+
+    # Perform PCA
+    eigVal, eigVec, sumEigVal = PCA(X_train_std, threshold = pcathresh)
+    X_train_std = X_train_std.dot(eigVec)
+    X_test_std = X_test_std.dot(eigVec)
+
+    # Add the bias term for the final models
+    y_train, X_train_std = build_model_data(X_train_std, y_train)
+    y_test, X_test_std = build_model_data(X_test_std, y_test)
+
+    return y_train, X_train, y_test, X_train_std, X_test_std
+# -----------------------------------------------------------------------------------
+
+def boxplotter(boxvalues, testvalues, labels, xlabel, ylabel, savefigas):
+    
+    """boxvalues are the cross validation lists - a list of lists
+    testvalues are a list of floats indicating the test accuracies
+    labels (list of str) are a list of strings for what the names of each box should be
+    xlabel (str)  is the x label of the entire plot
+    ylabel (str) is the y label
+    savefigas (str) is the name of the image to save to the directory"""
+    
+    plt.style.use('seaborn')
+    plt.boxplot(boxvalues, labels = labels)
+    plt.xlabel(xlabel, weight='bold', fontsize=15)
+    plt.ylabel(ylabel, weight='bold', fontsize=15)
+    
+    for i in range(len(testvalues)):
+        plt.plot(i+1, testvalues[i], marker='o', c='red')
+
+    plt.savefig(savefigas)
 
 # -----------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------
@@ -306,7 +442,7 @@ def least_squares(y, tx, k=0):
     if k ==0:
         X = tx.T.dot(tx)
         Y = tx.T.dot(y)
-        w = np.linalg.solve(X,Y)
+        w = np.linalg.lstsq(X,Y)[0]
         return w
 
     # If k > 0, determine if this is a good way to select the model (retrieve variance and bias)
@@ -319,7 +455,7 @@ def least_squares(y, tx, k=0):
             X = x_tr.T.dot(x_tr)
             Y = x_tr.T.dot(y_tr)
             try:
-                w = np.linalg.solve(X,Y)
+                w = np.linalg.lstsq(X,Y)[0]
             except np.linalg.LinAlgError as err: # Due to a singular matrix, need to add some noise for it to work
                 X += 0.000001
                 Y += 0.000001
@@ -358,7 +494,7 @@ def ridge_regression(y, tx, lambda_):
 # USEFUL FUNCTIONS
 
 def sigmoid(z):
-    
+    """ Sigmoid function for logistic regression """
     idx = z > 0
     sig = np.zeros(z.shape)
     sig[idx] = 1. / (1 + np.exp(-z[idx]))
@@ -380,7 +516,15 @@ def predict_labels_logistic(weights, data, threshold = 0.5):
 # -----------------------------------------------------------------------------------
 
 def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 0.0005, method = "gd",batch_size = 1000, writing = False):
+    """ Simple logistic regression model function 
+    Takes parameters for optimazation:
+        max_iters = number of iterations
+        gamma = learning rate
+        method = gradient descent (gd) or stochastic gradient descent (sgd)
+        batch_size = size of batch for sgd
+        writing = boolean if true write prograssion of learning
     
+    """
     w = initial_w
     
     losses_tr = [compute_loss(y, tx, w, lam = 0, method = 'logistic')]
@@ -395,7 +539,7 @@ def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 
     
     if method == "gd":
         for i in range(max_iters):
-            grad = compute_gradient(y, tx, initial_w, lam=0, method = "logistic")
+            grad = compute_gradient(y, tx, initial_w, lambda_=0, method = "logistic")
             
             w -= gamma * grad
 
@@ -416,7 +560,7 @@ def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 
     if method == "sgd":
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
-                grad = compute_gradient(y, tx, initial_w,lam=0, method = "logistic")
+                grad = compute_gradient(y, tx, initial_w,lambda_=0, method = "logistic")
 
 
                 w -= gamma * grad
@@ -443,6 +587,17 @@ def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 
 
 
 def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters = 10000, gamma = 0.0005, method = "gd", batch_size = 1000, writing = False):
+       
+    """ Regularized logistic regression model function 
+    Takes parameters for optimazation:
+        lamda = regularization parameter
+        max_iters = number of iterations
+        gamma = learning rate
+        method = gradient descent (gd) or stochastic gradient descent (sgd)
+        batch_size = size of batch for sgd
+        writing = boolean if true write prograssion of learning
+    
+    """
     
     w = initial_w
     
@@ -458,7 +613,7 @@ def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters 
     
     if method == "gd":
         for i in range(max_iters):
-            grad = compute_gradient(y, tx, initial_w, lam=lamb, method = "logistic")
+            grad = compute_gradient(y, tx, initial_w, lambda_=lamb, method = "logistic")
             
             w -= gamma * grad
 
@@ -479,7 +634,7 @@ def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters 
     if method == "sgd":
         for i in range(max_iters):   
             for mini_y, mini_X in batch_iter(y, tx, batch_size):                
-                grad = compute_gradient(y, tx, initial_w,lam=lamb, method = "logistic")
+                grad = compute_gradient(y, tx, initial_w,lambda_=lamb, method = "logistic")
 
 
                 w -= gamma * grad
@@ -507,6 +662,7 @@ def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters 
 
 def compute_hessian(y, tx, w, lam):
     """return the hessian of the loss function."""
+    
     z = sigmoid(tx.dot(w))
     D = z * (1-z)
     XD = tx * D.reshape(-1,1)
@@ -514,8 +670,27 @@ def compute_hessian(y, tx, w, lam):
     return hess/len(y)
 
 
+<<<<<<< HEAD
 def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
+=======
+def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0.5, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
+    """ Regularized/simple logistic regression computed with Netwon's method
     
+    Takes parameters for optimazation:
+        lam = lambda (regularization parameter)
+        max_iters = number of iterations
+        gamma = learning rate
+        method = gradient descent (gd) or stochastic gradient descent (sgd)
+        batch_size = size of batch for sgd
+        writing = boolean if true write prograssion of learning
+        
+        tol and patience for early stopping. 
+        The learning stop after the difference in loss is small than the tolerence (tol) for a number of times (patience)
+        
+        momentum = value for modifying the learning rate using momentum method
+>>>>>>> c8de3cbacccc099d81376eff29a2b95ad378e48d
+    
+    """
     # Define parameters to store w
     w = initial_w
     # ws = [w]
@@ -570,6 +745,10 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
 
 
 def Grid_Search_logistic(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0, tol=1e-5, patience = 5):
+    """ 
+    Simpified version of logistic regressiong for faster computing of grid search
+    
+    """
     # Define parameters to store w
     w = initial_w
     

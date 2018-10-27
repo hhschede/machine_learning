@@ -2,7 +2,7 @@ import numpy as np
 from implementations import *
 from pca import *
 
-def process_data(data, data_t, feature_filtering = True, remove_outlier = True, replace = 'mean'):
+def process_data(data, data_t, feature_filtering = True, remove_outlier = True, replace = 'mean', standardize=True):
     """The process_data function prepares the train and test data by performing
     some data cleansing techniques. Missing values which are set as -999
     are replaced by NaN, then the means of each features are calculated
@@ -18,15 +18,14 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
     # Setting missing values (-999) as NaN
     data_process_tr[data_process_tr == -999] = np.nan
     data_process_ts[data_process_ts == -999] = np.nan
-    
-    print('The original dimensions of the training data set was {0} samples and {1} columns'.format(data_process_tr.shape[0],data_process_tr.shape[1]))
-    
 
     # Filtering weak features and samples
 
     # Retrieving percentage for each feature 
     
     if feature_filtering:
+        print("Filtering features")
+        
         nan_count = np.count_nonzero(np.isnan(data_process_tr),axis=0)/data_process_tr.shape[0]
         
         idx_del = []
@@ -36,13 +35,13 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
                 idx_del.append(idx)
         data_process_tr = np.delete(data_process_tr, idx_del,1).copy()
         data_process_ts = np.delete(data_process_ts, idx_del,1).copy()
+        
+        
 
-    # Print new dimensions of the dataframe after filtering
-
-    print(' After feature and sample filtering, there are {0} samples and {1} columns'.format(data_process_tr.shape[0],data_process_tr.shape[1]))
-    
     if remove_outlier:
-
+        
+        print("Finding and replacing outliers by column mean")
+        
         data_tr = np.zeros(data_process_tr.shape)
         data_ts = np.zeros(data_process_ts.shape)
         column_means = np.nanmean(data_process_tr, axis=0)
@@ -82,6 +81,8 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
     column_std_t = np.nanstd(data_process_tr, axis=0)
     
     if replace == 'mean':
+        print("Replacing NaN points with feature mean value")
+        
         # Getting Rid of NaN and Replacing with mean
         # Create list with average values of columns, excluding NaN values
 
@@ -94,6 +95,8 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
         data_process_ts[inds_t] = np.take(column_means_t, inds_t[1])
         
     if replace == 'median':
+        print("Replacing NaN points with feature median value")
+        
         # Getting Rid of NaN and Replacing with mean
         # Create list with average values of columns, excluding NaN values
         column_med = np.nanmedian(data_process_tr, axis=0)
@@ -109,7 +112,7 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
         
     if replace == 'zero':
         
-
+        print("Replacing NaN points with zeros")
         # Variable containing locations of NaN in data frame
         inds = np.where(np.isnan(data_process_tr)) 
         inds_t = np.where(np.isnan(data_process_ts))
@@ -117,20 +120,26 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
         data_process_tr[inds] = 0
         data_process_ts[inds_t] = 0
     
-    column_std[column_std == 0] = 1
-    data_process_tr = (data_process_tr - column_means)/column_std
-    data_process_ts = (data_process_ts - column_means)/column_std
+    if standardize:
+        print("Standerizing the data")
+        column_std[column_std == 0] = 1
+        data_process_tr = (data_process_tr - column_means)/column_std
+        data_process_ts = (data_process_ts - column_means)/column_std
 
     return (data_process_tr, data_process_ts)
 
 def transform_data(data, data_t, y, y_t, poly = 4, interact = True, log = True, three = True, pca_t = 1):
 
     # Build polynomial of degree poly
+    print("Building polynomial of degree {0}".format(poly))
     data_tr = build_poly(data, poly)
     data_ts = build_poly(data_t, poly)
     
     if interact:
         # Build interaction terms
+        
+        print("Building the interactive terms")
+        
         data_tr_int = build_interact_terms(data)
         data_ts_int = build_interact_terms(data_t)
         data_tr = np.c_[data_tr, data_tr_int]
@@ -138,12 +147,19 @@ def transform_data(data, data_t, y, y_t, poly = 4, interact = True, log = True, 
 
     if log:
         # Build log 
+        
+        print("Taking the log value of the data")
+        
         data_tr_log = np.log(abs(data)+1)
         data_ts_log = np.log(abs(data_t)+1)
         data_tr = np.c_[data_tr, data_tr_log]
         data_ts = np.c_[data_ts, data_ts_log]
         
     if three:
+        # Build interaction terms
+        
+        print("Building the interactive terms or order three")
+        
         data_tr_3 = build_three_way(data)
         data_ts_3 = build_three_way(data_t)
         data_tr = np.delete(data_tr, np.s_[0:30],axis=1)
@@ -153,11 +169,15 @@ def transform_data(data, data_t, y, y_t, poly = 4, interact = True, log = True, 
         
 
     # Perform PCA
+    print("Performing PCA and keeping feature explaining {0} of the variance".format(pca_t))
+    
     eigVal, eigVec, sumEigVal = PCA(data_tr, threshold = pca_t)
     data = data_tr.dot(eigVec)
     data_t = data_ts.dot(eigVec)
-    print("we have reduce the number of feature with PCA to {0}".format(eigVec.shape[1]))
+    print("Reducing the number of PCA to {0}".format(eigVec.shape[1]))
     
+    
+    print("Adding a columns of ones to the dataset")
     y, tx = build_model_data(data, y)
     y_t, tx_t = build_model_data(data_t, y_t)
     
