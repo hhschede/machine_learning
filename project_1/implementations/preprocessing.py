@@ -86,7 +86,7 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
 
         # Reassign locations of NaN to the column means
         data_process_tr[inds] = np.take(column_means, inds[1])
-        data_process_ts[inds_t] = np.take(column_means_t, inds_t[1])
+        data_process_ts[inds_t] = np.take(column_means, inds_t[1])
         
     if replace == 'median':
         

@@ -204,11 +204,12 @@ def do_cross_val(methodtype, k, w, ytrain, xtrain, ytest, xtrainstd, xteststd, l
         accuracies = []
         for i in np.arange(k):
             y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
-            w = np.random.rand(x_tr.shape[1])
-            losses, losses_t, acc, acc_t, w = logistic_hessian(y_tr, x_tr, y_te, x_te, w, 0.07, 500, 150, writing=False)
+            w_ = np.random.rand(x_tr.shape[1])
+            losses, losses_t, acc, acc_t, w = logistic_hessian(y_tr, x_tr, y_te, x_te, w_, 0.07, 500, 150, writing=False)
             accuracies.append(acc_t[-1])
     
         # Perform algorithm on entire training set to retrieve w
+        
         losses, losses_t, acc, test_accuracy, w = logistic_hessian(ytrain, xtrainstd, ytest,
                                                            xteststd, w, 0.07, 500, 150, writing=False)
         # test_accuracies_log.append(test_accuracy[-1])
