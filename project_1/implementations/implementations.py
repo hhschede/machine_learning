@@ -367,7 +367,7 @@ def least_squares_GD(y, tx, y_t, tx_t, initial_w, tol = 1e-5, max_iters = 10000,
     # This else is for determining if this is a good way to select the model - return test and training errors
     else:
         
-        gen = cross_val(y, tx, k, 0.01, 2) # Initiate generator object
+        gen = cross_val(y, tx, k) # Initiate generator object
         w_final = []
         accuracies = []
         
@@ -500,7 +500,7 @@ def least_squares(y, tx, k=0):
         
         w_final = []
         accuracies = []
-        gen = cross_val(y, tx, k, 0.01, 2) # Initiate generator object
+        gen = cross_val(y, tx, k) # Initiate generator object
         
         for i in np.arange(k):
             
