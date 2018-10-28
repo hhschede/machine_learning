@@ -38,17 +38,6 @@ def predict_labels(weights, data, threshold = 0):
 
 # -----------------------------------------------------------------------------
 
-def predict_labels_logistic(weights, data, threshold = 0.5):
-    """Generates class predictions given weights, and a test data matrix"""
-    
-    y_pred = sigmoid(data.dot(weights))
-    y_pred[np.where(y_pred < threshold)] = -1
-    y_pred[np.where(y_pred >= threshold)] = 1
-    
-    return y_pred
-
-# -----------------------------------------------------------------------------
-
 def create_csv_submission(ids, y_pred, name):
     """
     Creates an output file in csv format for submission to kaggle
