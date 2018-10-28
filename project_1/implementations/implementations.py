@@ -805,3 +805,76 @@ def Grid_Search_logistic(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_i
     return max(acc_ts)
 
 
+# -----------------------------------------------------------------------------------
+
+
+def SGD_logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0.9, tol=1e-8, patience = 1, writing = True, batch_size = 250, threshold = 0.5):
+    """ Regularized/simple logistic regression computed with Netwon's method
+    
+        Takes parameters for optimazation:
+        lam = lambda (regularization parameter)
+        max_iters = number of iterations
+        gamma = learning rate
+        method = gradient descent (gd) or stochastic gradient descent (sgd)
+        batch_size = size of batch for sgd
+        writing = boolean if true write prograssion of learning
+        
+        tol and patience for early stopping. 
+        The learning stop after the difference in loss is small than the tolerence (tol) for a number of times (patience)
+        
+        momentum = value for modifying the learning rate using momentum method. """
+    
+    w = initial_w
+    
+    losses_tr = [compute_loss(y, tx, w, method = "logistic")]
+    losses_ts = [compute_loss(y_t, tx_t, w, method = "logistic")]
+    
+    pred = predict_labels_logistic(w, tx, threshold)
+    acc_tr = [pred_accuracy(pred, y)]
+    
+    pred_t = predict_labels_logistic(w, tx_t, threshold)
+    acc_ts = [pred_accuracy(pred_t, y_t)]
+    
+    diff = 10
+    n_iter = 0
+    nb_ES = 0
+    velocity = 0
+    
+    while (n_iter < max_iters) and (patience > nb_ES):
+        for y_batch, tx_batch in batch_iter(y, tx, batch_size=batch_size, num_batches=1):
+            
+            
+            # Compute gradient
+            gd = compute_gradient(y_batch, tx_batch, w, lam, method = "logistic")
+        
+            # Compute hessian
+            hess = compute_hessian(y_batch, tx_batch, w, lam)
+        
+            # Compute next w
+            velocity = momentum*velocity - gamma*np.linalg.solve(hess,gd)
+            w = w + velocity
+        
+            # Compute loss and accuracies
+            losses_tr.append(compute_loss(y_batch, tx_batch, w, method = "logistic"))
+            pred = predict_labels_logistic(w, tx_batch, threshold)
+            acc_tr.append(pred_accuracy(pred, y_batch))
+        
+            losses_ts.append(compute_loss(y_t, tx_t, w, method = "logistic"))
+            pred_t = predict_labels_logistic(w, tx_t, threshold)
+            acc_ts.append(pred_accuracy(pred_t, y_t))
+        
+        # Compute diff
+        diff = abs(losses_tr[-2]-losses_tr[-1])
+        
+        n_iter += 1
+        
+        if writing:
+            if n_iter % 25 == 0:
+                print("{0}/{1}\t train acc : {2} \t | test acc : {3}".format(n_iter, max_iters, acc_tr[-1],acc_ts[-1]))
+        
+        if (diff < tol):
+                nb_ES = nb_ES + 1
+        else:
+            nb_ES = 0
+            
+    return losses_tr, losses_ts, acc_tr, acc_ts, w
