@@ -2,20 +2,20 @@ import csv
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-# -----------------------------------------------------------------------------------
 
 def load_csv_data(data_path, sub_sample=False):
     """Loads data and returns y (class labels), tX (features) and ids (event ids)"""
+    
     y = np.genfromtxt(data_path, delimiter=",", skip_header=1, dtype=str, usecols=1)
     x = np.genfromtxt(data_path, delimiter=",", skip_header=1)
     ids = x[:, 0].astype(np.int)
     input_data = x[:, 2:]
 
-    # convert class labels from strings to binary (-1,1)
+    # Convert class labels from strings to binary (-1,1)
     yb = np.ones(len(y))
     yb[np.where(y == 'b')] = -1
 
-    # sub-sample
+    # Sub-sample
     if sub_sample:
         yb = yb[::50]
         input_data = input_data[::50]
@@ -23,19 +23,29 @@ def load_csv_data(data_path, sub_sample=False):
 
     return yb, input_data, ids
 
-
-
-# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def predict_labels(weights, data, threshold = 0):
     """Generates class predictions given weights, and a test data matrix"""
+    
     y_pred = (np.dot(data, weights))
     y_pred[np.where(y_pred <= threshold)] = -1
     y_pred[np.where(y_pred > threshold)] = 1
+    
     return y_pred
 
+# -----------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------------
+def predict_labels_logistic(weights, data, threshold = 0.5):
+    """Generates class predictions given weights, and a test data matrix"""
+    
+    y_pred = sigmoid(data.dot(weights))
+    y_pred[np.where(y_pred < threshold)] = -1
+    y_pred[np.where(y_pred >= threshold)] = 1
+    
+    return y_pred
+
+# -----------------------------------------------------------------------------
 
 def create_csv_submission(ids, y_pred, name):
     """
@@ -44,6 +54,7 @@ def create_csv_submission(ids, y_pred, name):
                y_pred (predicted class labels)
                name (string name of .csv output file to be created)
     """
+    
     with open(name, 'w') as csvfile:
         fieldnames = ['Id', 'Prediction']
         writer = csv.DictWriter(csvfile, delimiter=",", fieldnames=fieldnames)
@@ -51,7 +62,7 @@ def create_csv_submission(ids, y_pred, name):
         for r1, r2 in zip(ids, y_pred):
             writer.writerow({'Id':int(r1),'Prediction':int(r2)})
 
-# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def split_data(X, y, ratio=0.8, seed=1):
     """The split_data function will shuffle data randomly as well as return
@@ -61,9 +72,7 @@ def split_data(X, y, ratio=0.8, seed=1):
     of the corresponding sample in X. This may be a class or a float.
     The ratio variable is a float, default 0.8, that sets the train set fraction of
     the entire dataset to 0.8 and keeps the other part for test set"""
-    
-    import random
-    
+        
     # Set seed
     np.random.seed(seed)
 
@@ -76,7 +85,6 @@ def split_data(X, y, ratio=0.8, seed=1):
 
     # Cut the data set into train and test
     train_num = round(len(y) * ratio)
-    
     X_train = X_shuff[:train_num,:]
     y_train = y_shuff[:train_num]
     X_test = X_shuff[train_num:,:]
@@ -84,42 +92,44 @@ def split_data(X, y, ratio=0.8, seed=1):
 
     return X_train, y_train, X_test, y_test
 
-
-
-# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def pred_accuracy(predict, y):
+    """Computes the accuracy of a prediction on the labels."""
+    
     compare = (predict == y)
     percent = np.mean(compare)
+    
     return percent
 
-
-# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def standardize(x):
     """Standardize the original data set."""
+    
     mean = np.mean(x, axis=0)
     center = x - mean
+    
     variance = np.std(center, axis=0)
-    variance[variance==0] = 0.00001
-    try:
-        standard_data = center / variance
-    except RuntimeWarning:
-        standard_data = center
+    variance[variance==0] = 1
+    
+    standard_data = center / variance
+
     return standard_data, mean, variance
 
-# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def standardize_test(x, means, variance):
     """Standardize the test set using training set means and variance"""
+    
     center = x - means
-    try:
-        standard_data = center / variance
-    except RuntimeWarning:
-        standard_data = center
+    variance[variance==0] = 1
+
+    standard_data = center / variance
+
     return standard_data
 
-# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
     """
@@ -147,7 +157,4 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         start_index = batch_num * batch_size
         end_index = min((batch_num + 1) * batch_size, data_size)
         if start_index != end_index:
-            yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
-
-# -----------------------------------------------------------------------------------
- 
+            yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index] 

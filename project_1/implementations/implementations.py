@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore")
 # -----------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------
 
-def compute_loss(y, tx, w, lam = 0, method = "MSE"):
+def compute_loss(y, tx, w, method = "MSE"):
     """Calculate the loss."""
 
     if method == "MSE":
@@ -45,17 +45,31 @@ def compute_gradient(y, tx, w, lambda_=0, method = "MSE"):
         
     elif method == "logistic":
         z = sigmoid(y * tx.dot(w))
-        z0 = (z - 1) * y
-        grad = (tx.T.dot(z0) + lambda_ * w)/len(y)
+        z_ = (z - 1) * y
+        grad = (tx.T.dot(z_) + lambda_ * w)/len(y)
+        
     return grad
 
 # -----------------------------------------------------------------------------
 
+def compute_hessian(y, tx, w, lam):
+    """Returns the hessian of the loss function."""
+    
+    z = sigmoid(tx.dot(w))
+    D = z * (1-z)
+    XD = tx * D.reshape(-1,1)
+    hess = (tx.T.dot(XD) + lam * np.eye(tx.shape[1]))/len(y)
+    
+    return hess
+
+# -----------------------------------------------------------------------------
+
 def build_model_data(x, y):
-    """Form (y,tX) to get regression data in matrix form."""
+    """Add column for bias term (adding a column of ones to the data set)."""
     
     num_samples = len(y)
     tx = np.c_[np.ones(num_samples), x]
+    
     return y, tx
 
 # -----------------------------------------------------------------------------
@@ -67,33 +81,29 @@ def build_poly(x, degree):
     poly = x
     for deg in range(2, degree+1):
         poly = np.c_[poly, np.power(x, deg)]
-    return poly
-
-# -----------------------------------------------------------------------------
-
-
-def build_poly_rt(x, degree):
-    """Polynomial basis functions for input data x."""
-    
-    poly = np.power(abs(x), 1./2)
-    for deg in range(3, degree+1):
-        poly = np.c_[poly, np.power(x, 1./deg)]
+ 
     return poly
 
 # -----------------------------------------------------------------------------
 
 def build_interact_terms(x):
-    """Calculates interaction terms for each feature."""
+    """Calculates interaction terms of second order for each feature."""
     
     interact = (x[:,1:].T * x[:,0]).T
     for i in range(1, x.shape[1]):
         interact = np.c_[interact, (x[:,(i+1):].T*x[:,i]).T]
+        
     return interact
 
 # -----------------------------------------------------------------------------
 
 def build_three_way(x):
-    """Calculates triple interaction terms for each feature."""
+    """Calculates three-way interaction terms for each feature.
+    Note that this function does not do every combination, it only makes a subset
+    of all the three-way interaction terms. The reason why is because it takes a 
+    lot of time to build these interaction terms and it also increases dramatically
+    the number of features, which then can result in memory errors, so we decided
+    to compute only a subset of these terms."""
 
     interact = []
     result = x
@@ -106,20 +116,34 @@ def build_three_way(x):
 
 # -----------------------------------------------------------------------------
 
+def sigmoid(z):
+    """ Sigmoid function for logistic regression """
+    
+    idx = z > 0
+    sig = np.zeros(z.shape)
+    sig[idx] = 1. / (1 + np.exp(-z[idx]))
+    sig[~idx] = np.exp(z[~idx]) / (1. + np.exp(z[~idx]))
+        
+    return sig
+
+# -----------------------------------------------------------------------------
+
 def build_k_indices(y, k_fold, seed):
     """build k indices for k-fold."""
     
     num_row = y.shape[0]
     interval = int(num_row / k_fold)
+    
     np.random.seed(seed)
     indices = np.random.permutation(num_row)
     k_indices = [indices[k * interval: (k + 1) * interval] for k in range(k_fold)]
+    
     return np.array(k_indices)
 
-# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def cross_val(y, x, k):
-    """get subsets for cross validation"""
+    """Get subsets for cross validation"""
     
     k_indices = build_k_indices(y, k, 0)
 
@@ -132,23 +156,22 @@ def cross_val(y, x, k):
         x_te = x[te_indice]
         x_tr = x[tr_indice]
         
-        # standardize the sets
-        
-
-
+        # Standardize the sets
         x_train, mean, variance = standardize(x_tr)
         x_test = standardize_test(x_te, mean, variance)
         
+        # Apply PCA
         eigVal, eigVec, sumEigVal = PCA(x_train, threshold = 0.90)
         x_train = x_train.dot(eigVec)
         x_test = x_test.dot(eigVec)
         
+        # Add a column of ones
         y_tr, x_train = build_model_data(x_train, y_tr)
         y_te, x_test = build_model_data(x_test, y_te)
         
         yield np.array(y_tr), np.array(x_train), np.array(y_te), np.array(x_test) #this is a generator! call next(object) for next set
 
-# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
         
 def do_cross_val(methodtype, k, w, ytrain, xtrain, ytest, xtrainstd, xteststd, lambda_ = 0):
     """do_cross_val function returns a list of cross validation accuracies and a test set accuracy
@@ -198,7 +221,8 @@ def do_cross_val(methodtype, k, w, ytrain, xtrain, ytest, xtrainstd, xteststd, l
         test_accuracy = pred_accuracy(test_pred_lab, ytest)
 
         return accuracies, test_accuracy
-# -----------------------------------------------------------------------------------
+    
+# -----------------------------------------------------------------------------
     
 def create_dataset(rawdata, rawlabels, interact=False, degree=0, pcathresh=0.9, split=0.8):
     
@@ -253,7 +277,8 @@ def create_dataset(rawdata, rawlabels, interact=False, degree=0, pcathresh=0.9, 
     y_test, X_test_std = build_model_data(X_test_std, y_test)
 
     return y_train, X_train, y_test, X_train_std, X_test_std
-# -----------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
 
 def boxplotter(boxvalues, testvalues, labels, xlabel, ylabel, savefigas):
     
@@ -295,10 +320,10 @@ def least_squares_GD(y, tx, y_t, tx_t, initial_w, tol = 1e-5, max_iters = 10000,
     For cross validation: If k is set to > 0, then the function returns
     the average test loss between the trials, the variance between the trials, the vector of test losses over 
     gradient descent (for each cross validation, so it is a list of lists), the training loss and the 
-    last w that was retrieved from the last trial (if one wants to use it for plotting etc)
+    last w that was retrieved from the last trial (if one wants to use it for plotting).
     
     For retrieving the optimal w: If k is set to 0, the entire y and tx values given to the function will
-    be used to calculate the optimal w. the only value that will be returned is w"""
+    be used to calculate the optimal w. the only value that will be returned is w."""
     
     test_loss = []
     test_losses_vector = []
@@ -307,17 +332,24 @@ def least_squares_GD(y, tx, y_t, tx_t, initial_w, tol = 1e-5, max_iters = 10000,
     # This if is for a final model, that is - if we want to get the best w's (so use all training samples)
     
     if k == 0:
+        
         w = initial_w
         ws = [initial_w]
+        
         losses_tr = [compute_loss(y, tx, w)]
         losses_ts = [compute_loss(y_t, tx_t, w)]
+        
         acc_tr = [pred_accuracy(predict_labels(w, tx), y)]
         acc_ts = [pred_accuracy(predict_labels(w, tx_t), y_t)]
+        
         for i in range(max_iters):
-            # compute gradient
+            
+            # Compute gradient
             gd = compute_gradient(y, tx, w)
-            # compute next w
+            
+            # Compute next w
             w = w - gamma*gd
+            
             ws.append(w)
             losses_tr.append(compute_loss(y, tx, w))
             losses_ts.append(compute_loss(y_t, tx_t, w))
@@ -334,57 +366,69 @@ def least_squares_GD(y, tx, y_t, tx_t, initial_w, tol = 1e-5, max_iters = 10000,
     
     # This else is for determining if this is a good way to select the model - return test and training errors
     else:
-        gen = cross_val(y, tx, k, 0.01, 2) # initiate generator object
+        
+        gen = cross_val(y, tx, k, 0.01, 2) # Initiate generator object
         w_final = []
         accuracies = []
+        
         for i in np.arange(k):
             y_tr, x_tr, y_te, x_te = next(gen)
 
             # Define parameters to store w and loss
-            # ws = [initial_w]
+            
             w = initial_w
+            
             my_losses = [compute_loss(y_tr, x_tr, w)]
             test_mylosses = []
             loss = my_losses[0]
+            
             n_iter=0
+            
             while n_iter < max_iters:
-                # compute gradient
+                
+                # Compute gradient
                 gd = compute_gradient(y_tr, x_tr, w)
-                # compute next w
+                
+                # Compute next w
                 w = w - gamma*gd
-                # compute loss and diff
+                
+                # Compute loss and diff
                 loss = compute_loss(y_tr, x_tr, w)
-                # store w and loss and increment
-                # ws.append(w)
+                
+                # Store w and loss and increment
                 n_iter += 1
                 my_losses.append(loss)
                 test_mylosses.append(compute_loss(y_te, x_te, w))
+                
                 if abs(my_losses[-1] - my_losses[-2]) < tol:
                     continue
                     
                 if write == True:
                     print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
+                    
             test_losses_vector.append(test_mylosses)
+            
             # Append the list of test accuracies
             w_final.append(w)
             test_pred_lab = predict_labels(w, x_te)
             accuracies.append(pred_accuracy(test_pred_lab, y_te))
 
-            # append the test_loss to the list so it can be averaged at the end
+            # Append the test_loss to the list so it can be averaged at the end
             test_loss.append(compute_loss(y_te, x_te, w))
             training_loss.append(loss)
             
-            
         return np.array(test_loss).mean(), np.array(test_loss).var(), np.array(test_losses_vector), np.array(training_loss).mean(), w_final, accuracies
 
-# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def least_squares_SGD(y, tx, y_t, tx_t, initial_w, batch_size = 1000, tol = 1e-4,patience = 1, max_iters = 1000, gamma = 0.05, write = False):
     """Stochastic gradient descent algorithm."""
 
     w = initial_w
+    
     losses_tr = [compute_loss(y, tx, w)]
     losses_ts = [compute_loss(y_t, tx_t, w)]
+    
     acc_tr = [pred_accuracy(predict_labels(w, tx), y)]
     acc_ts = [pred_accuracy(predict_labels(w, tx_t), y_t)]
     
@@ -392,18 +436,20 @@ def least_squares_SGD(y, tx, y_t, tx_t, initial_w, batch_size = 1000, tol = 1e-4
     n_iter=0
     nb_ES = 0
     
-    
     while (n_iter <= max_iters) and (nb_ES < patience): 
         for mini_y, mini_tx in batch_iter(y, tx, batch_size):
-            # compute gradient
+            
+            # Compute gradient
             gd = compute_gradient(mini_y, mini_tx, w)
             
-            # compute next w
+            # Compute next w
             w = w - gamma*gd
             
-            # compute loss
+            # Compute loss
             losses_tr.append(compute_loss(y, tx, w))
             losses_ts.append(compute_loss(y_t, tx_t, w))
+            
+            # Compute accuracy
             acc_tr.append(pred_accuracy(predict_labels(w, tx), y))
             acc_ts.append(pred_accuracy(predict_labels(w, tx_t), y_t))
                       
@@ -418,11 +464,14 @@ def least_squares_SGD(y, tx, y_t, tx_t, initial_w, batch_size = 1000, tol = 1e-4
         if write and (n_iter % 500 == 0):
             print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
                   bi=n_iter, ti=max_iters - 1, l=losses[-1], w0=w[0], w1=w[1]))
+            
     return losses_tr, losses_ts, acc_tr, acc_ts, w
+
 
 # -----------------------------------------------------------------------------------
 # LEAST SQUARES
 # -----------------------------------------------------------------------------------
+
 
 def least_squares(y, tx, k=0):
     """Calculate the least square solution with cross validation option
@@ -440,6 +489,7 @@ def least_squares(y, tx, k=0):
     
     # If k == 0, the function returns the best w given the entire dataset used as input
     if k ==0:
+        
         X = tx.T.dot(tx)
         Y = tx.T.dot(y)
         w = np.linalg.lstsq(X,Y)[0]
@@ -447,19 +497,18 @@ def least_squares(y, tx, k=0):
 
     # If k > 0, determine if this is a good way to select the model (retrieve variance and bias)
     else:
+        
         w_final = []
         accuracies = []
-        gen = cross_val(y, tx, k, 0.01, 2) # initiate generator object
+        gen = cross_val(y, tx, k, 0.01, 2) # Initiate generator object
+        
         for i in np.arange(k):
-            y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
+            
+            y_tr, x_tr, y_te, x_te = next(gen) # Take next subtraining and subtest sets
             X = x_tr.T.dot(x_tr)
             Y = x_tr.T.dot(y_tr)
-            try:
-                w = np.linalg.lstsq(X,Y)[0]
-            except np.linalg.LinAlgError as err: # Due to a singular matrix, need to add some noise for it to work
-                X += 0.000001
-                Y += 0.000001
-                w = np.linalg.solve(X,Y)
+            w = np.linalg.lstsq(X,Y)[0]
+            
             test_loss.append(compute_loss(y_te, x_te, w))
             training_loss.append(compute_loss(y_tr, x_tr, w))
             
@@ -468,13 +517,11 @@ def least_squares(y, tx, k=0):
             test_pred_lab = predict_labels(w, x_te)
             accuracies.append(pred_accuracy(test_pred_lab, y_te))
         return np.array(test_loss).mean(), np.array(test_loss).var(), np.array(training_loss).mean(), w_final, accuracies
-
-
+    
 
 # -----------------------------------------------------------------------------------
 # RIDGE REGRESSION
 # -----------------------------------------------------------------------------------
-
 
 
 def ridge_regression(y, tx, lambda_):
@@ -483,48 +530,24 @@ def ridge_regression(y, tx, lambda_):
     xTx = tx.T.dot(tx)
     X = xTx + (2 * len(y) * lambda_ * np.identity(len(xTx)))
     Y = tx.T.dot(y)
-    return np.linalg.solve(X, Y)
-
+    
+    return np.linalg.lstsq(X, Y)[0]
 
 
 # -----------------------------------------------------------------------------------
 # LOGISTIC REGRESSION
 # -----------------------------------------------------------------------------------
 
-# USEFUL FUNCTIONS
-
-def sigmoid(z):
-    """ Sigmoid function for logistic regression """
-    idx = z > 0
-    sig = np.zeros(z.shape)
-    sig[idx] = 1. / (1 + np.exp(-z[idx]))
-    sig[~idx] = np.exp(z[~idx]) / (1. + np.exp(z[~idx]))
-        
-    return sig
-
-# -----------------------------------------------------------------------------------
-
-def predict_labels_logistic(weights, data, threshold = 0.5):
-    """Generates class predictions given weights, and a test data matrix"""
-    y_pred = sigmoid(data.dot(weights))
-    y_pred[np.where(y_pred < threshold)] = -1
-    y_pred[np.where(y_pred >= threshold)] = 1
-    
-    return y_pred
-
-
-# -----------------------------------------------------------------------------------
 
 def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 0.0005, method = "gd",batch_size = 1000, writing = False):
     """ Simple logistic regression model function 
-    Takes parameters for optimazation:
+        Takes parameters for optimazation:
         max_iters = number of iterations
         gamma = learning rate
         method = gradient descent (gd) or stochastic gradient descent (sgd)
         batch_size = size of batch for sgd
-        writing = boolean if true write prograssion of learning
+        writing = boolean if true write prograssion of learning """
     
-    """
     w = initial_w
     
     losses_tr = [compute_loss(y, tx, w, lam = 0, method = 'logistic')]
@@ -535,18 +558,22 @@ def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 
     
     pred_t = predict_labels_logistic(w, tx_t)
     acc_ts = [pred_accuracy(pred_t, y_t)]
-
     
     if method == "gd":
+        
         for i in range(max_iters):
+            
+            # Compute gradient
             grad = compute_gradient(y, tx, initial_w, lambda_=0, method = "logistic")
             
+            # Compute next w
             w -= gamma * grad
-
+            
+            # Append loss
             losses_tr.append(compute_loss(y, tx, w, lam = 0, method = 'logistic'))
             losses_ts.append(compute_loss(y_t,tx_t,w,lam=0,method = 'logistic'))
             
-            
+            # Append accuracies
             pred = predict_labels_logistic(w, tx)
             acc_tr.append(pred_accuracy(pred, y))
             
@@ -558,17 +585,21 @@ def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 
                     print("iteration: {iter} | loss_ts : {l}".format(
                         iter = i, l=losses_ts[-1] ))
     if method == "sgd":
+        
         for i in range(max_iters):   
-            for mini_y, mini_X in batch_iter(y, tx, batch_size):                
+            for mini_y, mini_X in batch_iter(y, tx, batch_size): 
+                
+                # Compute gradient
                 grad = compute_gradient(y, tx, initial_w,lambda_=0, method = "logistic")
 
-
+                # Compute next w
                 w -= gamma * grad
                 
-                
+                # Compute losses
                 losses_tr.append(compute_loss(mini_y, mini_X, w,lam = 0, method = "logistic"))
                 losses_ts.append(compute_loss(y_t,tx_t,w,lam=0,method = 'logistic'))
                 
+                # Compute accuracies
                 pred = predict_labels_logistic(w, tx)
                 acc_tr.append(pred_accuracy(pred, y))
                 
@@ -580,24 +611,20 @@ def logistic_regression(y, tx, y_t, tx_t, initial_w, max_iters = 10000, gamma = 
                     print("iteration: {iter} | loss_ts : {l}".format(
                         iter = i, l=losses_ts[-1] ))
             
-
     return losses_tr, losses_ts, acc_tr, acc_ts, w
 
 # -----------------------------------------------------------------------------------
 
-
 def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters = 10000, gamma = 0.0005, method = "gd", batch_size = 1000, writing = False):
        
     """ Regularized logistic regression model function 
-    Takes parameters for optimazation:
+        Takes parameters for optimazation:
         lamda = regularization parameter
         max_iters = number of iterations
         gamma = learning rate
         method = gradient descent (gd) or stochastic gradient descent (sgd)
         batch_size = size of batch for sgd
-        writing = boolean if true write prograssion of learning
-    
-    """
+        writing = boolean if true write prograssion of learning."""
     
     w = initial_w
     
@@ -609,18 +636,22 @@ def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters 
     
     pred_t = predict_labels_logistic(w, tx_t)
     acc_ts = [pred_accuracy(pred_t, y_t)]
-
     
     if method == "gd":
+        
         for i in range(max_iters):
+            
+            # Compute gradient
             grad = compute_gradient(y, tx, initial_w, lambda_=lamb, method = "logistic")
             
+            # Compute next w
             w -= gamma * grad
-
+            
+            # Compute losses
             losses_tr.append(compute_loss(y, tx, w, lam = lamb, method = 'logistic'))
             losses_ts.append(compute_loss(y_t,tx_t,w,lam=lamb,method = 'logistic'))
             
-            
+            # Compute accuracies
             pred = predict_labels_logistic(w, tx)
             acc_tr.append(pred_accuracy(pred, y))
             
@@ -631,18 +662,24 @@ def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters 
                 if i % 500 == 0:
                     print("iteration: {iter} | loss_ts : {l}".format(
                         iter = i, l=losses_ts[-1] ))
+                    
     if method == "sgd":
+        
         for i in range(max_iters):   
-            for mini_y, mini_X in batch_iter(y, tx, batch_size):                
+            for mini_y, mini_X in batch_iter(y, tx, batch_size):   
+                
+                # Compute gradient
                 grad = compute_gradient(y, tx, initial_w,lambda_=lamb, method = "logistic")
 
-
+                # Compute next w
                 w -= gamma * grad
-                
                 ws[i+1] = w
+                
+                # Compute losses
                 losses_tr.append(compute_loss(mini_y, mini_X, w,lam = lamb, method = "logistic"))
                 losses_ts.append(compute_loss(y_t,tx_t,w,lam=lamb,method = 'logistic'))
                 
+                # Compute accuracies
                 pred = predict_labels_logistic(w, tx)
                 acc_tr.append(pred_accuracy(pred, y))
                 
@@ -654,26 +691,14 @@ def reg_logistic_regression(y, tx, y_t, tx_t, initial_w, lamb = 0.01, max_iters 
                     print("iteration: {iter} | loss_ts : {l}".format(
                         iter = i, l=losses_ts[-1] ))
             
-
     return losses_tr, losses_ts, acc_tr, acc_ts, w
 
-
 # -----------------------------------------------------------------------------------
-
-def compute_hessian(y, tx, w, lam):
-    """return the hessian of the loss function."""
-    
-    z = sigmoid(tx.dot(w))
-    D = z * (1-z)
-    XD = tx * D.reshape(-1,1)
-    hess = tx.T.dot(XD) + lam*np.eye((tx.shape[1]))
-    return hess/len(y)
-
 
 def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0.9, tol=1e-8, patience = 1, writing = True, threshold = 0.5):
     """ Regularized/simple logistic regression computed with Netwon's method
     
-    Takes parameters for optimazation:
+        Takes parameters for optimazation:
         lam = lambda (regularization parameter)
         max_iters = number of iterations
         gamma = learning rate
@@ -684,17 +709,12 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
         tol and patience for early stopping. 
         The learning stop after the difference in loss is small than the tolerence (tol) for a number of times (patience)
         
-        momentum = value for modifying the learning rate using momentum method
->>>>>>> c8de3cbacccc099d81376eff29a2b95ad378e48d
+        momentum = value for modifying the learning rate using momentum method. """
     
-    """
-    # Define parameters to store w
     w = initial_w
-    # ws = [w]
     
-    # Compute losses
-    losses_tr = [compute_loss(y, tx, w, method="logistic")]
-    losses_ts = [compute_loss(y_t, tx_t, w, method="logistic")]
+    losses_tr = [compute_loss(y, tx, w, method = "logistic")]
+    losses_ts = [compute_loss(y_t, tx_t, w, method = "logistic")]
     
     pred = predict_labels_logistic(w, tx, threshold)
     acc_tr = [pred_accuracy(pred, y)]
@@ -703,28 +723,32 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
     acc_ts = [pred_accuracy(pred_t, y_t)]
     
     diff = 10
-    n_iter=0
+    n_iter = 0
     nb_ES = 0
     velocity = 0
     
     while (n_iter < max_iters) and (patience > nb_ES):
-        # compute gradient
-        gd = compute_gradient(y, tx, w, lam, method="logistic")
+        
+        # Compute gradient
+        gd = compute_gradient(y, tx, w, lam, method = "logistic")
+        
+        # Compute hessian
         hess = compute_hessian(y, tx, w, lam)
         
-        # compute next w
+        # Compute next w
         velocity = momentum*velocity - gamma*np.linalg.solve(hess,gd)
         w = w + velocity
         
-        # compute loss and diff
-        losses_tr.append(compute_loss(y, tx, w, method="logistic"))
+        # Compute loss and accuracies
+        losses_tr.append(compute_loss(y, tx, w, method = "logistic"))
         pred = predict_labels_logistic(w, tx, threshold)
         acc_tr.append(pred_accuracy(pred, y))
         
-        losses_ts.append(compute_loss(y_t, tx_t, w, method="logistic"))
+        losses_ts.append(compute_loss(y_t, tx_t, w, method = "logistic"))
         pred_t = predict_labels_logistic(w, tx_t, threshold)
         acc_ts.append(pred_accuracy(pred_t, y_t))
         
+        # Compute diff
         diff = abs(losses_tr[-2]-losses_tr[-1])
         
         n_iter += 1
@@ -740,13 +764,11 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
             
     return losses_tr, losses_ts, acc_tr, acc_ts, w
 
+# -----------------------------------------------------------------------------------
 
 def Grid_Search_logistic(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters = 100, momentum = 0, tol=1e-5, patience = 5):
-    """ 
-    Simpified version of logistic regressiong for faster computing of grid search
-    
-    """
-    # Define parameters to store w
+    """Simpified version of logistic regressiong for faster computing of grid search."""
+
     w = initial_w
     
     pred_t = predict_labels_logistic(w, tx_t, 0.5)
@@ -755,18 +777,22 @@ def Grid_Search_logistic(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_i
     velocity = 0
     
     diff = 10
-    n_iter=0
+    n_iter = 0
     nb_ES = 0
     
     while (n_iter < max_iters) and (patience > nb_ES):
-        # compute gradient
-        gd = compute_gradient(y, tx, w, lam, method="logistic")
+        
+        # Compute gradient
+        gd = compute_gradient(y, tx, w, lam, method = "logistic")
+        
+        # Compute hesssian
         hess = compute_hessian(y, tx, w, lam)
         
-        # compute next w
+        # Compute next w
         velocity = momentum*velocity - gamma*np.linalg.solve(hess,gd)
         w = w + velocity
         
+        # Compute accuracy
         pred_t = predict_labels_logistic(w, tx_t, 0.5)
         acc_ts.append(pred_accuracy(pred_t, y_t))
 
