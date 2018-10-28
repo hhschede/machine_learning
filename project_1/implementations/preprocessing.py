@@ -29,7 +29,7 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
         idx_del = []
         
         for idx, entry in enumerate(nan_count):
-            if (entry == 1):
+            if (entry >= 1):
                 idx_del.append(idx)
         data_process_tr = np.delete(data_process_tr, idx_del,1).copy()
         data_process_ts = np.delete(data_process_ts, idx_del,1).copy()
@@ -131,6 +131,7 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
 
 def transform_data(data, data_t, y, y_t, poly = 4, interact = True, log = True, three = True, pca_t = 1):
 
+    num_features = data.shape[1]
     # Build polynomial of degree poly
     print("Building polynomial of degree {0}".format(poly))
     
@@ -157,14 +158,14 @@ def transform_data(data, data_t, y, y_t, poly = 4, interact = True, log = True, 
         
     if three:
         # Build interaction terms
-        print("Building the interactive terms or order three")
+        print("Building the interactive terms of order three")
         
         data_tr_3 = build_three_way(data)
         data_ts_3 = build_three_way(data_t)
         
-        # Deletes 30 first features as they would be duplicated otherwise
-        data_tr_3 = np.delete(data_tr, np.s_[0:30],axis=1)
-        data_ts_3 = np.delete(data_ts, np.s_[0:30],axis=1)
+        # Deletes features from data as they would be duplicated otherwise
+        data_tr_3 = np.delete(data_tr_3, np.s_[0:num_features],axis=1)
+        data_ts_3 = np.delete(data_ts_3, np.s_[0:num_features],axis=1)
         
         data_tr = np.c_[data_tr, data_tr_3]
         data_ts = np.c_[data_ts, data_ts_3]

@@ -774,9 +774,6 @@ def logistic_hessian(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_iters
         else:
             nb_ES = 0
             
-        if n_iter % 5 == 0:
-            gamma *= 0.5
-            
     return losses_tr, losses_ts, acc_tr, acc_ts, w
 
 # -----------------------------------------------------------------------------------
