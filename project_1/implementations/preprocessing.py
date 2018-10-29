@@ -48,6 +48,8 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
 
         for i in range(len(column_means)):
             col = data_process_tr[:,i]
+            
+            # create intervals to determine if a sample is 3 times std away from the mean
             thresh_sup = column_means[i] + 3*column_std[i]
             thresh_inf = column_means[i] - 3*column_std[i]
 
@@ -57,6 +59,7 @@ def process_data(data, data_t, feature_filtering = True, remove_outlier = True, 
             
             mean_wo_outlier = np.mean(col[ np.array([(e <= thresh_sup and e >= thresh_inf) if ~np.isnan(e) else False for e in col], dtype=bool) ])
             
+            # set the columns if they have the outliers to the means without these outliers
             col[ np.array([e >= thresh_sup if ~np.isnan(e) else False for e in col], dtype=bool) ] = mean_wo_outlier
             col[ np.array([e <= thresh_inf if ~np.isnan(e) else False for e in col], dtype=bool) ] = mean_wo_outlier
             
