@@ -26,8 +26,8 @@ from plot import *
 from helpers import *
 
 # Autoreload
-get_ipython().run_line_magic('load_ext', 'autoreload')
-get_ipython().run_line_magic('autoreload', '2')
+#get_ipython().run_line_magic('load_ext', 'autoreload')
+#get_ipython().run_line_magic('autoreload', '2')
 
 # Set random seed
 np.random.seed(1)
