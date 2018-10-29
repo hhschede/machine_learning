@@ -161,7 +161,7 @@ def cross_val(y, x, k):
     
     k_indices = build_k_indices(y, k, 0)
     
-    # for each fold of k, create a new training and test set for dataset x and labels y
+    # For each fold of k, create a new training and test set for dataset x and labels y
     for i in np.arange(k):
         te_indice = k_indices[i]
         tr_indice = k_indices[~(np.arange(k_indices.shape[0]) == i)]
@@ -172,19 +172,19 @@ def cross_val(y, x, k):
         x_tr = x[tr_indice]
         
         # Standardize the sets
-        x_train, mean, variance = standardize(x_tr) # retrieve mean and variance of training set
-        x_test = standardize_test(x_te, mean, variance) # apply training set mean and variance to standardize test set
+        x_train, mean, variance = standardize(x_tr) # Retrieve mean and variance of training set
+        x_test = standardize_test(x_te, mean, variance) # Apply training set mean and variance to standardize test set
         
         # Apply PCA
         eigVal, eigVec, sumEigVal = PCA(x_train, threshold = 0.90)
         x_train = x_train.dot(eigVec)
-        x_test = x_test.dot(eigVec) # use eigenvectors taken from training set to transform test set data
+        x_test = x_test.dot(eigVec) # Use eigenvectors taken from training set to transform test set data
         
         # Add a column of ones for bias term
         y_tr, x_train = build_model_data(x_train, y_tr)
         y_te, x_test = build_model_data(x_test, y_te)
         
-        yield np.array(y_tr), np.array(x_train), np.array(y_te), np.array(x_test) #this is a generator! call next(object) for next set
+        yield np.array(y_tr), np.array(x_train), np.array(y_te), np.array(x_test) # This is a generator! call next(object) for next set
 
 # -----------------------------------------------------------------------------
         

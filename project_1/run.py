@@ -130,13 +130,13 @@ y_j2, tx_j2, y_j2_t, tx_j2_t = transform_data(data_j2, data_j2_t, lab_j2, lab_j2
 max_iter = 50
 
 initial_w = np.zeros(tx_j0.shape[1])
-losses, losses_t, acc, acc_t, w_0 = logistic_hessian(y_j0, tx_j0, y_j0_t, tx_j0_t, initial_w, gamma = 0.08, lam = 0.01, momentum = 0.1, max_iters = max_iter)
+losses, losses_t, acc, acc_t, w_0 = logistic_hessian(y_j0, tx_j0, y_j0_t, tx_j0_t, initial_w, gamma = 0.08, lam = 0.01, max_iters = max_iter)
 
 initial_w = np.zeros(tx_j1.shape[1])
-losses, losses_t, acc, acc_t, w_1 = logistic_hessian(y_j1, tx_j1, y_j1_t, tx_j1_t, initial_w, gamma = 0.0575, lam = 10, momentum = 0, max_iters = max_iter)
+losses, losses_t, acc, acc_t, w_1 = logistic_hessian(y_j1, tx_j1, y_j1_t, tx_j1_t, initial_w, gamma = 0.0575, lam = 10, max_iters = max_iter)
 
 initial_w = np.zeros(tx_j2.shape[1])
-losses, losses_t, acc, acc_t, w_2 = logistic_hessian(y_j2, tx_j2, y_j2_t, tx_j2_t, initial_w, gamma = 0.065, lam = 10, momentum = 0, max_iters = max_iter)
+losses, losses_t, acc, acc_t, w_2 = logistic_hessian(y_j2, tx_j2, y_j2_t, tx_j2_t, initial_w, gamma = 0.065, lam = 10, max_iters = max_iter)
 
 
 # Kaggle submission
