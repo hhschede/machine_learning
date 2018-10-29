@@ -5,6 +5,12 @@ This ReadMe contains descriptions of the different jupyter notebooks used for pr
 ./data folder:
 	This folder contains the data used in this code. There is a train and test set, both of which are in CSV files. The training set contains labelled samples while the test set does not.
 
+./figures folder:
+	This folder contains the figures found in the report
+	
+./grid_search folder
+	This folder contains the results of the grid search for the three different models (based on jet group, explained within the report). The results are within .npy files (numpy arrays)
+	
 ./implementations folder:
 	In this folder you find all the methods used in the code. 
 - helpers.py : Contaisn basic functions
@@ -13,8 +19,7 @@ This ReadMe contains descriptions of the different jupyter notebooks used for pr
 - plot.py : Contains functions to plot the learning curves of the models
 - preprocessing.py: Contains process_data() and transform_data() methods. These methods perform feature filtering, data standarization, polynomial building, PCA reduction and others.
 
-./figures folder:
-	This folder contains the figures found in the report
+
 	
 grid_searching.ipyn:
 	This jupyter notebook is concerned with determining the hyperparameters of the regularizer and learning rate of our logistic regression function.
