@@ -1,8 +1,8 @@
 
 import numpy as np
-from implementations.implementations import *
-from implementations.helpers import *
-from implementations.pca import *
+from implementations import *
+from helpers import *
+from pca import *
 
 
 def process_data(data, data_t, feature_filtering = True, remove_outlier = True, replace = 'mean', standardize = True):

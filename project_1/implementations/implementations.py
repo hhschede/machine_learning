@@ -1,6 +1,6 @@
 import numpy as np
-from implementations.helpers import *
-from implementations.pca import *
+from helpers import *
+from pca import *
 import warnings
 warnings.filterwarnings("ignore")
 
