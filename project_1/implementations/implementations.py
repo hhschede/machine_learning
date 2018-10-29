@@ -814,4 +814,4 @@ def Grid_Search_logistic(y, tx, y_t, tx_t, initial_w, gamma=0.05, lam=0.1, max_i
         else:
             nb_ES = 0
     
-    return max(acc_ts)
+    return acc_ts[-1]
