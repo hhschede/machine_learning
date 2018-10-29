@@ -1,6 +1,9 @@
+
 import numpy as np
-from implementations import *
-from pca import *
+from implementations.implementations import *
+from implementations.helpers import *
+from implementations.pca import *
+
 
 def process_data(data, data_t, feature_filtering = True, remove_outlier = True, replace = 'mean', standardize = True):
     """The process_data function prepares the train and test data by performing
