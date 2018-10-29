@@ -154,10 +154,14 @@ def build_k_indices(y, k_fold, seed):
 # -----------------------------------------------------------------------------
 
 def cross_val(y, x, k):
-    """Get subsets for cross validation"""
+    """Get subsets for cross validation
+    y: numpy column array
+    x: numpy matrix with samples in rows and features across columns
+    k: integer, number of folds"""
     
     k_indices = build_k_indices(y, k, 0)
-
+    
+    # for each fold of k, create a new training and test set for dataset x and labels y
     for i in np.arange(k):
         te_indice = k_indices[i]
         tr_indice = k_indices[~(np.arange(k_indices.shape[0]) == i)]
@@ -168,15 +172,15 @@ def cross_val(y, x, k):
         x_tr = x[tr_indice]
         
         # Standardize the sets
-        x_train, mean, variance = standardize(x_tr)
-        x_test = standardize_test(x_te, mean, variance)
+        x_train, mean, variance = standardize(x_tr) # retrieve mean and variance of training set
+        x_test = standardize_test(x_te, mean, variance) # apply training set mean and variance to standardize test set
         
         # Apply PCA
         eigVal, eigVec, sumEigVal = PCA(x_train, threshold = 0.90)
         x_train = x_train.dot(eigVec)
-        x_test = x_test.dot(eigVec)
+        x_test = x_test.dot(eigVec) # use eigenvectors taken from training set to transform test set data
         
-        # Add a column of ones
+        # Add a column of ones for bias term
         y_tr, x_train = build_model_data(x_train, y_tr)
         y_te, x_test = build_model_data(x_test, y_te)
         
@@ -212,7 +216,8 @@ def do_cross_val(methodtype, k, w, ytrain, xtrain, ytest, xtrainstd, xteststd, l
         
         losses, losses_t, acc, test_accuracy, w = logistic_hessian(ytrain, xtrainstd, ytest,
                                                            xteststd, w, 0.07, 500, 150, writing=False)
-        # test_accuracies_log.append(test_accuracy[-1])
+        
+        # return accuracies of cross validation folds and the last value of the test_accuracy array
     
         return accuracies, test_accuracy[-1]
 
