@@ -13,11 +13,17 @@ This ReadMe contains descriptions of the different jupyter notebooks used for pr
 - plot.py : Contains functions to plot the learning curves of the models
 - preprocessing.py: Contains process_data() and transform_data() methods. These methods perform feature filtering, data standarization, polynomial building, PCA reduction and others.
 
+./figures folder:
+	This folder contains the figures found in the report
+	
+grid_searching.ipyn:
+	This jupyter notebook is concerned with determining the hyperparameters of the regularizer and learning rate of our logistic regression function.
+
 testing_implemented_functions.ipynb:
 	This jupyter notebook regroups linear and logistic regression. In this notebook we demonstrated that our implemented function works and present different functions that we will be using in other jupyter notebooks.
 
 report_figures.ipynb:
-	In this file is the code used to cross validate our model and to generate the figures used in the report. The figures are outputed as .png
+	This jupyter notebook is used to cross validate our model and to generate the figures used in the report. The figures are outputed as .png
 
 run.ipynb:
-	This jupyter notebook was used to compute the last optimized model and predict 	the labels on the test set that will be submitted on kaggle.
+	This jupyter notebook was used to compute the final optimized model and predict the labels on the test set that will be submitted on kaggle.
