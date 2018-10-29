@@ -28,14 +28,10 @@ testing_implemented_functions.ipynb:
 	This jupyter notebook regroups linear and logistic regression. In this notebook we demonstrated that our implemented function works and present different functions that we will be used in other jupyter notebooks.
 
 report_figures.ipynb:
-<<<<<<< HEAD
 	In this file, there is the code used to cross-validate our model and to generate the figures used in the report. The figures are outputed as .png
 
 run.ipynb:
-	This jupyter notebook was used to compute the last optimized model and predict the labels on the test set that will be submitted on kaggle.
-=======
-	This jupyter notebook is used to cross validate our model and to generate the figures used in the report. The figures are outputed as .png
+	This Jupyter notebook was used to compute the last optimized model and predict the labels on the test set that will be submitted on Kaggle.
 
-run.ipynb:
-	This jupyter notebook was used to compute the final optimized model and predict the labels on the test set that will be submitted on kaggle.
->>>>>>> 16b999fbf734daef11953432a014965ff0b99d98
+run.py:
+   This .py file is the final file for running our code for the submission to Kaggle. If this file does not work for any obscure reason, please use the run notebook.
