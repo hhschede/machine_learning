@@ -208,16 +208,15 @@ def do_cross_val(methodtype, k, w, ytrain, xtrain, ytest, xtrainstd, xteststd, l
         accuracies = []
         for i in np.arange(k):
             y_tr, x_tr, y_te, x_te = next(gen) # take next subtraining and subtest sets
-            w_ = np.random.rand(x_tr.shape[1])
-            losses, losses_t, acc, acc_t, w = logistic_hessian(y_tr, x_tr, y_te, x_te, w_, 0.07, 500, 150, writing=False)
+            w = np.random.rand(x_tr.shape[1])
+            losses, losses_t, acc, acc_t, w = logistic_hessian(y_tr, x_tr, y_te, x_te, w, 0.07, 500, 150, writing=False)
             accuracies.append(acc_t[-1])
     
         # Perform algorithm on entire training set to retrieve w
-        
+        w = np.random.rand(xtrainstd.shape[1])
         losses, losses_t, acc, test_accuracy, w = logistic_hessian(ytrain, xtrainstd, ytest,
                                                            xteststd, w, 0.07, 500, 150, writing=False)
-        
-        # return accuracies of cross validation folds and the last value of the test_accuracy array
+        # test_accuracies_log.append(test_accuracy[-1])
     
         return accuracies, test_accuracy[-1]
 
@@ -238,6 +237,31 @@ def do_cross_val(methodtype, k, w, ytrain, xtrain, ytest, xtrainstd, xteststd, l
         test_accuracy = pred_accuracy(test_pred_lab, ytest)
 
         return accuracies, test_accuracy
+    
+    if methodtype == 'linear_regression_SGD':
+        
+        gen = cross_val(ytrain, xtrain, k)
+        accuracies = []
+        for i in np.arange(k):
+            y_tr, x_tr, y_te, x_te = next(gen)
+            losses_tr, losses_ts, acc_tr, acc_ts, w_ = least_squares_SGD(y_tr, x_tr, y_te, x_te,
+                                                                         w, batch_size = 3000, tol = 1e-4,
+                                                                         patience = 1, max_iters = 1400, gamma = 0.006)
+            
+            #append test accuracies
+            test_pred_lab = predict_labels(w_, x_te)
+            accuracies.append(pred_accuracy(test_pred_lab, y_te))
+        
+        losses_tr, losses_ts, acc_tr, acc_ts, w_ = least_squares_SGD(ytrain, xtrainstd, ytest,
+                                                                     xteststd, w, batch_size = 3000,
+                                                                     tol = 1e-4,patience = 1, max_iters = 1400, gamma = 0.006)
+        test_pred_lab = predict_labels(w_, xteststd)
+        test_accuracy = pred_accuracy(test_pred_lab, ytest)
+
+        return accuracies, test_accuracy
+            
+        
+    
     
 # -----------------------------------------------------------------------------
     
